@@ -118,9 +118,13 @@ CREATE POLICY "Inserção de rolagens"
   TO authenticated, anon 
   WITH CHECK (true);
 
--- 10. TRIGGER PARA CRIAR PERFIL AUTOMATICAMENTE NO CADASTRO
+-- 10. FUNÇÃO E TRIGGER PARA CRIAR PERFIL AUTOMATICAMENTE NO CADASTRO
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+SET search_path = public
+AS $$
 BEGIN
   INSERT INTO public.profiles (id, username, display_name, role)
   VALUES (
@@ -128,10 +132,11 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
     COALESCE(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
     COALESCE(new.raw_user_meta_data->>'role', 'player')
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -153,6 +158,21 @@ VALUES
   (10, 'Personagem 10', 'Jogador 10', 'Corsário do Vazio', 'Vampiro', 'Preto (B)', 'black', 1, 0, 10, 0, 10, 10)
 ON CONFLICT (slot_id) DO NOTHING;
 
--- 12. HABILITAR REPLICAÇÃO EM TEMPO REAL NO SUPABASE
-ALTER PUBLICATION supabase_realtime ADD TABLE public.characters;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.dice_logs;
+-- 12. HABILITAR REPLICAÇÃO EM TEMPO REAL NO SUPABASE (SEGURO)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'characters'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.characters;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'dice_logs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.dice_logs;
+  END IF;
+END $$;
+
