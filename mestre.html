@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHRONUS — Painel do Mestre (GM Screen VTT)</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;900&family=Metamorphous&family=Noto+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/ficha.css">
+  <link rel="stylesheet" href="assets/css/toast.css">
+
+  <!-- Supabase JS CDN (Oficial) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- TOAST DE ROLAGEM -->
+  <div id="rollToast" class="roll-toast"></div>
+
+  <!-- BARRA DE NAVEGAÇÃO -->
+  <nav class="navbar-portal">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <a href="index.html" class="action-btn action-btn-secondary">
+        🏠 Portal de Fichas
+      </a>
+      <div class="brand-title" style="font-size: 1.2rem;">PAINEL DO MESTRE (VTT)</div>
+    </div>
+
+    <div class="nav-actions">
+      <button class="action-btn" onclick="gmPanel.refreshPlayers()">🔄 Atualizar Mesa</button>
+    </div>
+  </nav>
+
+  <!-- CONTEÚDO DO PAINEL DO MESTRE -->
+  <main style="width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 20px;">
+    
+    <!-- MOTOR DE DADOS RÁPIDOS DO MESTRE -->
+    <div class="section-box" style="background: rgba(14, 11, 9, 0.96); border: 2px solid var(--mtg-gold-mid);">
+      <div class="section-title" style="margin-bottom: 12px;">🎲 Rolador do Mestre (Com Rolagem Secreta)</div>
+      
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center;">
+        <button class="action-btn" onclick="gmPanel.rollGmDice(4)">d4</button>
+        <button class="action-btn" onclick="gmPanel.rollGmDice(6)">d6</button>
+        <button class="action-btn" onclick="gmPanel.rollGmDice(8)">d8</button>
+        <button class="action-btn" onclick="gmPanel.rollGmDice(10)">d10</button>
+        <button class="action-btn" onclick="gmPanel.rollGmDice(12)">d12</button>
+        <button class="action-btn" onclick="gmPanel.rollGmDice(20)">d20</button>
+        <button class="action-btn" onclick="gmPanel.rollGmDice(100)">d100</button>
+
+        <div style="display: flex; align-items: center; gap: 6px; margin-left: 15px; background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--mtg-gold-dark);">
+          <input type="checkbox" id="chkSecretRoll" style="accent-color: var(--mtg-gold-mid); width: 16px; height: 16px;">
+          <label for="chkSecretRoll" style="font-family: var(--font-sub); font-size: 0.75rem; color: var(--mtg-gold-light); cursor: pointer;">
+            🤫 Rolagem Oculta (Apenas Mestre)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAYOUT EM DUAS COLUNAS: MONITOR DOS 10 JOGADORES + FEED EM TEMPO REAL -->
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+      
+      <!-- GRID DOS 10 JOGADORES -->
+      <div class="section-box">
+        <div class="section-title">Status dos 10 Personagens em Tempo Real</div>
+        <div id="gmPlayersGrid" class="slots-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));"></div>
+      </div>
+
+      <!-- FEED DE ROLAGENS DA SESSÃO -->
+      <div class="section-box">
+        <div class="section-title">Feed de Rolagens da Mesa (Ao Vivo)</div>
+        <div id="gmRollFeed" style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+          <div style="color: var(--card-text-muted); font-size: 0.8rem; text-align: center; padding: 15px;">
+            Aguardando rolagens dos jogadores na sessão...
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- SCRIPTS -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/audioEngine.js"></script>
+  <script src="assets/js/diceEngine.js"></script>
+  <script src="assets/js/supabaseClient.js"></script>
+  <script src="assets/js/mestreApp.js"></script>
+</body>
+</html>

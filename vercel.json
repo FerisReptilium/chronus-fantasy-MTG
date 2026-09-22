@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/ficha1", "destination": "/ficha.html?slot=1" },
+    { "source": "/ficha2", "destination": "/ficha.html?slot=2" },
+    { "source": "/ficha3", "destination": "/ficha.html?slot=3" },
+    { "source": "/ficha4", "destination": "/ficha.html?slot=4" },
+    { "source": "/ficha5", "destination": "/ficha.html?slot=5" },
+    { "source": "/ficha6", "destination": "/ficha.html?slot=6" },
+    { "source": "/ficha7", "destination": "/ficha.html?slot=7" },
+    { "source": "/ficha8", "destination": "/ficha.html?slot=8" },
+    { "source": "/ficha9", "destination": "/ficha.html?slot=9" },
+    { "source": "/ficha10", "destination": "/ficha.html?slot=10" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ]
+}

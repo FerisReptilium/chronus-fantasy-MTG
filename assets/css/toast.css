@@ -1,0 +1,88 @@
+/* ==========================================================================
+   CHRONUS FANTASY RPG - ROLL TOASTS & NOTIFICATIONS (TOAST.CSS)
+   ========================================================================== */
+
+.roll-toast {
+  position: fixed;
+  bottom: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(14, 11, 9, 0.98);
+  border: 3px solid var(--mtg-gold-mid);
+  box-shadow: 0 15px 40px rgba(0,0,0,1), inset 0 0 25px rgba(212, 175, 55, 0.3), 0 0 30px rgba(212, 175, 55, 0.4);
+  padding: 18px 40px;
+  border-radius: 16px;
+  text-align: center;
+  font-family: var(--font-sub);
+  font-weight: 900;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  min-width: 320px;
+  max-width: 90vw;
+}
+
+.roll-toast.show {
+  bottom: 35px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.toast-title {
+  font-size: 0.9rem;
+  color: var(--mtg-gold-light);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  padding-bottom: 4px;
+}
+
+.toast-result {
+  font-size: 2.8rem;
+  color: var(--mtg-gold-mid);
+  text-shadow: 0 4px 10px #000, 0 0 15px rgba(212, 175, 55, 0.6);
+  margin: 6px 0;
+  font-family: var(--font-title);
+}
+
+.toast-breakdown {
+  font-size: 0.85rem;
+  color: var(--card-text-muted);
+  font-family: var(--font-body);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.toast-breakdown.penalty {
+  color: #ef4444;
+}
+
+.toast-breakdown.critical {
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+/* Notificação Simples (Toast Geral) */
+.simple-toast {
+  position: fixed;
+  top: 25px;
+  right: 25px;
+  background: rgba(18, 14, 12, 0.95);
+  border: 1.5px solid var(--mtg-gold-mid);
+  color: var(--mtg-gold-light);
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+  font-family: var(--font-sub);
+  font-size: 0.85rem;
+  font-weight: 700;
+  z-index: 2100;
+  opacity: 0;
+  transform: translateX(50px);
+  transition: all 0.3s ease;
+}
+.simple-toast.show {
+  opacity: 1;
+  transform: translateX(0);
+}

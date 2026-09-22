@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHRONUS FANTASY — Portal VTT & Fichas MTG Masterpiece</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;900&family=Metamorphous&family=Noto+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/toast.css">
+  
+  <!-- Supabase JS CDN (Oficial) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- BARRA DE NAVEGAÇÃO PRINCIPAL -->
+  <nav class="navbar-portal">
+    <a href="index.html" class="brand-container">
+      <div class="brand-title">CHRONUS FANTASY</div>
+    </a>
+
+    <div class="nav-actions">
+      <a href="mestre.html" class="action-btn action-btn-secondary" title="Abrir Tela do Mestre">
+        👑 Painel do Mestre
+      </a>
+      <button class="action-btn action-btn-secondary" onclick="portalHub.exportAllSheets()" title="Baixar Backup das 10 Fichas">
+        📥 Backup (10 Fichas)
+      </button>
+      <button class="action-btn action-btn-secondary" onclick="portalHub.openModal('configModal')" title="Configurar Conexão Supabase">
+        ⚙️ Nuvem
+      </button>
+      <div id="userNavContainer" style="display:flex; align-items:center; gap:8px;"></div>
+    </div>
+  </nav>
+
+  <!-- CABEÇALHO DO PORTAL -->
+  <header style="text-align: center; margin-bottom: 25px;">
+    <h1 style="font-family: var(--font-title); font-size: 2.2rem; background: var(--mtg-gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 10px #000; letter-spacing: 2px;">
+      PORTAL DE FICHAS & VTT
+    </h1>
+    <p style="font-family: var(--font-accent); color: var(--card-text-muted); font-size: 0.9rem; letter-spacing: 1.5px; text-transform: uppercase;">
+      10 Fichas de Jogadores — Magic: The Gathering Masterpiece Edition
+    </p>
+  </header>
+
+  <!-- GRID DOS 10 SLOTS DE PERSONAGENS -->
+  <main class="slots-container">
+    <div id="slotsGrid" class="slots-grid"></div>
+  </main>
+
+  <!-- MODAL: LOGIN / CADASTRO -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Acesso do Jogador / Mestre</h3>
+        <button class="modal-close" onclick="portalHub.closeModal('loginModal')">&times;</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="field-group">
+          <label>E-MAIL:</label>
+          <input type="email" id="loginEmail" placeholder="seuemail@exemplo.com">
+        </div>
+        <div class="field-group">
+          <label>SENHA:</label>
+          <input type="password" id="loginPass" placeholder="••••••••">
+        </div>
+        <div class="field-group">
+          <label>NOME / NICK:</label>
+          <input type="text" id="loginUsername" placeholder="Ex: Valírio ou Mestre">
+        </div>
+        <div class="field-group">
+          <label>FICHA / SLOT:</label>
+          <select id="loginSlotSelect">
+            <option value="">Nenhum (ou Mestre)</option>
+            <option value="1">Slot #1 - Valírio</option>
+            <option value="2">Slot #2 - Kaelen</option>
+            <option value="3">Slot #3 - Morwenna</option>
+            <option value="4">Slot #4 - Ignis</option>
+            <option value="5">Slot #5 - Sylvana</option>
+            <option value="6">Slot #6 - Autômato MK-VII</option>
+            <option value="7">Slot #7 - Aurelius</option>
+            <option value="8">Slot #8 - Nereida</option>
+            <option value="9">Slot #9 - Brakkor</option>
+            <option value="10">Slot #10 - Zul'Kiran</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button class="action-btn" onclick="portalHub.handleLogin()" style="flex: 1; justify-content: center;">
+            Entrar
+          </button>
+          <button class="action-btn action-btn-secondary" onclick="portalHub.handleRegister()" style="flex: 1; justify-content: center;">
+            Cadastrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INJETAR / COLAR CÓDIGO INDIVIDUAL NO SLOT -->
+  <div id="pasteCodeModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 700px;">
+      <div class="modal-header">
+        <h3 id="pasteModalSlotTitle">Injetar Código da Ficha</h3>
+        <button class="modal-close" onclick="portalHub.closeModal('pasteCodeModal')">&times;</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--card-text-muted); margin-bottom: 12px;">
+        Cole abaixo o código JSON da ficha individual que você deseja hospedar neste slot.
+      </p>
+      <textarea id="pasteCodeTextarea" style="min-height: 250px; font-family: monospace; font-size: 0.8rem;"></textarea>
+      
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+        <button class="action-btn action-btn-secondary" onclick="portalHub.closeModal('pasteCodeModal')">Cancelar</button>
+        <button class="action-btn" onclick="portalHub.savePastedCode()">Salvar no Slot</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIGURAÇÕES SUPABASE -->
+  <div id="configModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Configurações Supabase</h3>
+        <button class="modal-close" onclick="portalHub.closeModal('configModal')">&times;</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--card-text-muted); margin-bottom: 14px;">
+        Insira suas credenciais do projeto Supabase para habilitar salvamento na nuvem e sincronização em tempo real entre mestre e jogadores.
+      </p>
+      <div class="field-group" style="margin-bottom: 12px;">
+        <label>URL PROJETO:</label>
+        <input type="text" id="supaUrlInput" placeholder="https://xyzcompany.supabase.co">
+      </div>
+      <div class="field-group" style="margin-bottom: 18px;">
+        <label>ANON KEY:</label>
+        <input type="text" id="supaKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="action-btn action-btn-secondary" onclick="portalHub.closeModal('configModal')">Fechar</button>
+        <button class="action-btn" onclick="portalHub.saveSupabaseSettings()">Salvar Configurações</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOASTS DE NOTIFICAÇÃO -->
+  <div id="rollToast" class="roll-toast"></div>
+
+  <!-- SCRIPTS -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/audioEngine.js"></script>
+  <script src="assets/js/diceEngine.js"></script>
+  <script src="assets/js/supabaseClient.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

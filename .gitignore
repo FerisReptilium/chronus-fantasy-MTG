@@ -1,0 +1,34 @@
+# Chronus Fantasy RPG - Portal VTT & Fichas MTG Masterpiece
+
+# Dependências e Builds
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+.env*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos temporários
+tmp/
+*.tmp
+
+# Arquivos pesados (PDFs de livros com mais de 50MB que travam o Git/GitHub)
+*.pdf
+app/static/*.pdf
+

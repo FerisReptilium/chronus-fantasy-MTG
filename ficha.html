@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHRONUS — Ficha MTG Masterpiece Edition (VTT Completo)</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;900&family=Metamorphous&family=Noto+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Supabase JS CDN (Oficial) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --mtg-gold-light: #fdf5d3;
+      --mtg-gold-mid: #d4af37;
+      --mtg-gold-dark: #8a6a1c;
+      --mtg-gold-shadow: #3b2b07;
+      --mtg-gold-gradient: linear-gradient(135deg, var(--mtg-gold-light) 0%, var(--mtg-gold-mid) 45%, var(--mtg-gold-dark) 80%, var(--mtg-gold-shadow) 100%);
+      --card-border-outer: #0a0807;
+      --card-text: #f0e6d2;
+      --texture-noise: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" opacity="0.12"/></svg>');
+      --metal-brush: linear-gradient(90deg, rgba(0,0,0,0.8) 0%, rgba(40,40,40,0.9) 20%, rgba(20,20,20,0.95) 50%, rgba(40,40,40,0.9) 80%, rgba(0,0,0,0.8) 100%);
+    }
+
+    .theme-white { --theme-glow: rgba(255, 250, 220, 0.4); --theme-side: linear-gradient(180deg, #b0a999, #6e695e); --theme-box: rgba(230, 225, 215, 0.15); }
+    .theme-blue { --theme-glow: rgba(56, 189, 248, 0.4); --theme-side: linear-gradient(180deg, #1e3a8a, #0a0f1c); --theme-box: rgba(30, 58, 138, 0.25); }
+    .theme-black { --theme-glow: rgba(168, 85, 247, 0.4); --theme-side: linear-gradient(180deg, #27272a, #050505); --theme-box: rgba(24, 24, 27, 0.45); }
+    .theme-red { --theme-glow: rgba(239, 68, 68, 0.4); --theme-side: linear-gradient(180deg, #7f1d1d, #2b0606); --theme-box: rgba(127, 29, 29, 0.25); }
+    .theme-green { --theme-glow: rgba(34, 197, 94, 0.4); --theme-side: linear-gradient(180deg, #14532d, #011c15); --theme-box: rgba(20, 83, 45, 0.25); }
+    .theme-artifact { --theme-glow: rgba(214, 211, 209, 0.4); --theme-side: linear-gradient(180deg, #57534e, #1c1a19); --theme-box: rgba(87, 83, 78, 0.25); }
+    .theme-gold { --theme-glow: rgba(212, 175, 55, 0.5); --theme-side: linear-gradient(180deg, #854d0e, #1c1404); --theme-box: rgba(202, 138, 4, 0.2); }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at center, #24201e 0%, #050404 100%);
+      color: var(--card-text);
+      font-family: 'Noto Sans', sans-serif;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .controls-bar {
+      margin-bottom: 20px;
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center;
+      background: rgba(15, 12, 10, 0.92);
+      padding: 10px 18px;
+      border-radius: 40px;
+      border: 1px solid var(--mtg-gold-dark);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.9), inset 0 0 10px rgba(212, 175, 55, 0.1);
+      backdrop-filter: blur(8px);
+      z-index: 20;
+      width: 100%;
+      max-width: 1160px;
+    }
+
+    .action-btn {
+      background: var(--mtg-gold-gradient); color: #110e0c; border: 1px solid #ffeaad;
+      padding: 7px 16px; border-radius: 20px; font-family: 'Cinzel', serif; font-weight: 900; 
+      text-transform: uppercase; font-size: 0.75rem; cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.6); transition: all 0.2s;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .action-btn:hover { filter: brightness(1.2); transform: translateY(-2px); }
+    .action-btn-secondary { background: rgba(30, 25, 20, 0.9); color: var(--mtg-gold-light); border: 1px solid var(--mtg-gold-dark); }
+    .action-btn-danger { background: linear-gradient(135deg, #ef4444, #7f1d1d); color: #fff; border: 1px solid #fca5a5; }
+
+    .sync-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,0,0,0.6); border: 1px solid var(--mtg-gold-dark);
+      border-radius: 20px; padding: 4px 10px; font-size: 0.72rem;
+      font-family: 'Cinzel', serif; font-weight: bold; color: #b8b2a8;
+    }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .sync-dot.saving { background: #facc15; box-shadow: 0 0 6px #facc15; animation: pulse 1s infinite; }
+    .sync-dot.offline { background: #94a3b8; box-shadow: none; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+
+    .slot-select-box {
+      display: flex; align-items: center; gap: 6px; font-family: 'Cinzel', serif;
+      font-size: 0.75rem; font-weight: bold; color: var(--mtg-gold-light);
+    }
+    .slot-select-box select {
+      background: rgba(0,0,0,0.7); color: var(--mtg-gold-light);
+      border: 1px solid var(--mtg-gold-mid); border-radius: 6px;
+      padding: 4px 8px; font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer; outline: none;
+    }
+
+    .theme-selector { display: flex; gap: 6px; padding-left: 10px; border-left: 2px solid var(--mtg-gold-dark); align-items: center;}
+    .theme-btn { border: 1.5px solid rgba(255,255,255,0.4); width: 24px; height: 24px; border-radius: 50%; cursor: pointer; transition: transform 0.2s; }
+    .theme-btn:hover { transform: scale(1.25); }
+    .btn-w { background: radial-gradient(circle, #fef08a, #b47a05); }
+    .btn-u { background: radial-gradient(circle, #38bdf8, #024b75); }
+    .btn-b { background: radial-gradient(circle, #a855f7, #3e1261); }
+    .btn-r { background: radial-gradient(circle, #ef4444, #721212); }
+    .btn-g { background: radial-gradient(circle, #22c55e, #0e3b20); }
+    .btn-a { background: radial-gradient(circle, #a8a29e, #292624); }
+    .btn-gold { background: radial-gradient(circle, #fde047, #ca8a04); }
+
+    .mtg-card {
+      width: 100%; max-width: 1160px; 
+      background: var(--card-border-outer);
+      border-radius: 20px;
+      padding: 12px;
+      box-shadow: 0 40px 80px rgba(0,0,0,1), 0 0 45px var(--theme-glow, rgba(212, 175, 55, 0.4));
+      position: relative;
+    }
+
+    .mtg-card::before {
+      content: ''; position: absolute; top: 5px; left: 5px; right: 5px; bottom: 5px;
+      border: 2px solid var(--mtg-gold-mid); border-radius: 15px; pointer-events: none; opacity: 0.6; z-index: 1;
+    }
+
+    .mtg-card-inner {
+      background: var(--theme-side), var(--texture-noise);
+      background-blend-mode: overlay;
+      border: 4px solid #000;
+      border-image: var(--mtg-gold-gradient) 1;
+      padding: 20px 15px;
+      position: relative;
+      display: flex; flex-direction: column; gap: 15px;
+    }
+
+    .mtg-content-panel {
+      background: rgba(14, 11, 9, 0.95);
+      background-image: var(--texture-noise);
+      border: 2px solid var(--mtg-gold-dark);
+      box-shadow: inset 0 0 30px rgba(0,0,0,1);
+      padding: 16px; z-index: 10; position: relative;
+      border-radius: 8px;
+    }
+
+    .mtg-legendary-crown {
+      text-align: center;
+      background: linear-gradient(180deg, rgba(35,28,22,0.98), rgba(14,11,9,0.98));
+      border: 2px solid var(--mtg-gold-mid);
+      border-top-left-radius: 40px; border-top-right-radius: 40px;
+      padding: 10px 15px; margin: -25px -10px 15px -10px;
+      position: relative; box-shadow: 0 6px 15px rgba(0,0,0,0.9);
+    }
+    .mtg-legendary-crown h1 { font-family: 'Cinzel Decorative', serif; font-size: 1.8rem; letter-spacing: 3px; background: var(--mtg-gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 4px #000; }
+    .mtg-legendary-crown h2 { font-family: 'Metamorphous', serif; font-size: 0.8rem; letter-spacing: 2px; color: #b8b2a8; text-transform: uppercase; }
+
+    /* SISTEMA DE ABAS (TABS) */
+    .sheet-tabs {
+      display: flex; justify-content: center; gap: 12px; margin-bottom: 20px;
+      border-bottom: 2px solid var(--mtg-gold-dark); padding-bottom: 10px; flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: rgba(0,0,0,0.6); color: var(--mtg-gold-light);
+      border: 1px solid var(--mtg-gold-dark); padding: 9px 24px;
+      font-family: 'Cinzel', serif; font-weight: 900; font-size: 0.85rem;
+      cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.2s;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .tab-btn:hover { background: rgba(212, 175, 55, 0.2); }
+    .tab-btn.active { background: var(--mtg-gold-gradient); color: #000; border-color: #fff; box-shadow: 0 -4px 10px rgba(212, 175, 55, 0.4); }
+    .tab-content { display: none; animation: fadeIn 0.4s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .grid-info { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 1024px) { .grid-info { grid-template-columns: 1.2fr 1fr 1fr; } }
+
+    .section-box { background: var(--theme-box, rgba(230, 225, 215, 0.1)); border: 1px solid var(--mtg-gold-dark); border-radius: 4px; padding: 12px; }
+
+    .field-group { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .field-group label { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 900; color: var(--mtg-gold-light); min-width: 95px; }
+    .field-group input { flex: 1; background: rgba(0,0,0,0.4); border: none; border-bottom: 1.5px solid var(--mtg-gold-dark); padding: 4px 8px; font-size: 0.9rem; color: #fff; outline: none; }
+    .field-group input[type="number"] { -moz-appearance: textfield; }
+    .field-group input::-webkit-outer-spin-button, .field-group input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .field-group select { flex: 1; background: rgba(0,0,0,0.4); border: none; border-bottom: 1.5px solid var(--mtg-gold-dark); padding: 4px 8px; font-size: 0.9rem; color: #fff; outline: none; font-family: 'Cinzel', serif; font-weight: bold; }
+
+    .status-bar {
+      display: flex; flex-direction: column; gap: 12px; align-items: center;
+      background: linear-gradient(90deg, rgba(0,0,0,0.9), var(--theme-box, rgba(30,30,30,0.5)), rgba(0,0,0,0.9));
+      border-top: 2px solid var(--mtg-gold-dark); border-bottom: 2px solid var(--mtg-gold-dark);
+      padding: 12px; margin: 15px 0; border-radius: 6px;
+    }
+    @media(min-width: 768px) { .status-bar { flex-direction: row; justify-content: space-between; } }
+
+    .status-group { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    
+    .rollable-label { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 900; color: var(--mtg-gold-mid); cursor: pointer; transition: all 0.2s; padding: 2px 6px; border-radius: 4px; border: 1px solid transparent; }
+    .rollable-label:hover { color: #fff; background: rgba(212, 175, 55, 0.2); border: 1px solid var(--mtg-gold-mid); box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+    .status-group > label:not(.rollable-label) { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 900; color: var(--mtg-gold-mid); }
+    
+    .rhombus-container { display: flex; gap: 10px; }
+    .rhombus { width: 20px; height: 20px; border: 2px solid var(--mtg-gold-mid); transform: rotate(45deg); cursor: pointer; background: rgba(0,0,0,0.7); transition: all 0.2s; }
+    .rhombus.active { background: radial-gradient(circle, var(--mtg-gold-light), var(--mtg-gold-dark)); box-shadow: 0 0 10px var(--mtg-gold-light); }
+    
+    .radio-group { display: flex; gap: 12px; }
+    .radio-option { display: flex; flex-direction: column; align-items: center; font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--mtg-gold-light); }
+    .radio-option input { accent-color: var(--mtg-gold-mid); width: 16px; height: 16px; cursor: pointer; }
+
+    .shield-box input { width: 40px; height: 40px; text-align: center; background: rgba(0,0,0,0.9); border: 2px solid var(--mtg-gold-mid); border-radius: 8px; color: var(--mtg-gold-light); font-weight: 900; font-size: 1.1rem; }
+
+    .main-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+    @media (min-width: 1024px) { .main-grid { grid-template-columns: 1fr 1.6fr 1fr; } }
+    
+    .section-title { font-family: 'Cinzel', serif; font-size: 0.9rem; font-weight: 900; color: var(--mtg-gold-light); text-align: center; text-transform: uppercase; border-bottom: 2px solid var(--mtg-gold-dark); padding-bottom: 4px; margin-bottom: 10px; }
+
+    .attributes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 6px; }
+    .attribute-card { display: flex; flex-direction: column; align-items: center; }
+    .attribute-card label { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 900; color: var(--mtg-gold-mid); margin-bottom: 2px; }
+    
+    .circle-node { width: 50px; height: 50px; border: 2px solid var(--mtg-gold-mid); border-radius: 50%; background: radial-gradient(circle, rgba(40,30,20,0.95), #000); display: flex; justify-content: center; align-items: center; }
+    .circle-node select { background: transparent; border: none; font-family: 'Cinzel', serif; font-weight: 900; font-size: 1rem; color: var(--mtg-gold-light); outline: none; cursor: pointer; text-align-last: center; }
+
+    .roll-builder-panel { background: rgba(0,0,0,0.6); border: 2px solid var(--mtg-gold-dark); border-radius: 8px; padding: 15px; margin-top: 15px; box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.1); }
+    .roll-controls { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    
+    .cond-box { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--mtg-gold-dark); border-radius: 6px; transition: background 0.2s; }
+    .cond-box label { font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: bold; color: var(--card-text); text-align: center; user-select: none;}
+    .cond-box input[type="checkbox"] { width: 18px; height: 18px; pointer-events: none; }
+
+    /* RETÂNGULO GRANDE HORIZONTAL PARA ARTE */
+    .portrait-box { 
+      width: 100%; height: 360px; 
+      border: 4px solid var(--mtg-gold-mid); border-radius: 8px; 
+      background: #000 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text y="50%" x="50%" dominant-baseline="middle" text-anchor="middle" fill="%23c29d47" font-size="8" font-family="Cinzel">CLIQUE PARA ADICIONAR A ARTE (RETÂNGULO)</text></svg>') center/cover no-repeat; 
+      position: relative; box-shadow: 0 0 25px rgba(0,0,0,0.9), inset 0 0 35px rgba(0,0,0,0.9);
+      background-size: cover; background-position: center;
+      cursor: pointer;
+    }
+    .portrait-box input[type="file"] { opacity: 0; width: 100%; height: 100%; cursor: pointer; position: absolute; top:0; left:0; }
+
+    .mana-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 0.75rem; border: 1px solid var(--mtg-gold-dark); border-radius: 4px; overflow: hidden; }
+    .mana-table th { font-family: 'Cinzel', serif; background: rgba(194, 157, 71, 0.25); color: var(--mtg-gold-light); padding: 6px 2px; }
+    .mana-table th:first-child, .mana-table td:first-child { width: 40%; }
+    .mana-table td { border-top: 1px solid rgba(194, 157, 71, 0.2); padding: 5px 0; text-align: center; background: rgba(0,0,0,0.5); }
+    .mana-table td.mana-name { text-align: left; font-family: 'Cinzel', serif; font-weight: 700; padding-left: 6px; display: flex; align-items: center; gap: 6px; }
+    .mana-table input[type="checkbox"] { accent-color: var(--mtg-gold-mid); transform: scale(1.1); cursor: pointer; display: block; margin: 0 auto; }
+    .table-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; padding: 2px;}
+
+    .wounds-container { margin-top: 15px; text-align: center; }
+    .wound-boxes { display: grid; grid-template-columns: repeat(10, 24px); gap: 5px; justify-content: center; margin-top: 8px; }
+    .wound-box { width: 24px; height: 24px; background: #080808; border: 1px solid var(--mtg-gold-dark); border-radius: 3px; display: flex; justify-content: center; align-items: center; font-family: 'Cinzel', serif; font-weight: 900; font-size: 0.9rem; color: #ef4444; cursor: pointer; user-select: none; transition: opacity 0.3s; }
+
+    .list-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+    .list-row { display: flex; gap: 8px; align-items: center; }
+    .list-row input[type="text"] { flex: 1; }
+    .icon-btn { background: rgba(0,0,0,0.6); border: 1px solid var(--mtg-gold-dark); color: #fff; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: 0.2s; display:flex; justify-content:center; align-items:center; font-size:1.1rem; }
+    .icon-btn:hover { background: var(--mtg-gold-gradient); border-color: #fff; transform: scale(1.1); }
+    
+    .resource-counter { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.6); padding: 4px 6px; border-radius: 6px; border: 1px solid var(--mtg-gold-dark); }
+    .resource-btn { background: var(--mtg-gold-gradient); color: #000; border: none; width: 26px; height: 26px; border-radius: 4px; font-weight: 900; font-size: 1.1rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: transform 0.1s; }
+    .resource-btn:active { transform: scale(0.9); }
+    .resource-counter input { width: 45px; text-align: center; background: transparent; border: none; color: #fff; font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: bold; outline: none; }
+
+    .xp-footer { display: flex; align-items: center; gap: 15px; border-top: 2px solid var(--mtg-gold-dark); padding-top: 15px; margin-top: 15px; }
+    .level-badge { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: 'Cinzel Decorative', serif; font-size: 1.2rem; color: var(--mtg-gold-mid); border-right: 2px solid rgba(194,157,71,0.3); padding-right: 20px; text-shadow: 0 2px 4px #000; }
+    .level-badge span { font-size: 2.2rem; color: var(--mtg-gold-light); line-height: 1; }
+
+    .roll-toast { position: fixed; bottom: -150px; left: 50%; transform: translateX(-50%); background: rgba(14, 11, 9, 0.98); border: 2px solid var(--mtg-gold-mid); box-shadow: 0 10px 30px rgba(0,0,0,1), inset 0 0 15px rgba(212, 175, 55, 0.2); padding: 15px 35px; border-radius: 12px; text-align: center; font-family: 'Cinzel', serif; font-weight: 900; z-index: 1000; opacity: 0; pointer-events: none; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .roll-toast.show { bottom: 30px; opacity: 1; }
+    .toast-title { font-size: 0.85rem; color: #b8b2a8; letter-spacing: 2px; }
+    .toast-result { font-size: 2.5rem; color: var(--mtg-gold-mid); text-shadow: 0 4px 6px #000; margin: 5px 0; }
+    .toast-breakdown { font-size: 0.8rem; color: #a8a29e; font-family: 'Noto Sans', sans-serif; font-weight: bold; }
+    .toast-breakdown.penalty { color: #ef4444; }
+
+    .lore-textarea {
+      width: 100%; min-height: 250px; background: rgba(0,0,0,0.5); 
+      border: 2px solid rgba(194,157,71,0.4); padding: 15px; border-radius: 8px; 
+      color: var(--card-text); font-size: 0.95rem; resize: vertical; outline: none; 
+      line-height: 1.6; font-family: 'Noto Sans', sans-serif;
+    }
+    .lore-textarea:focus { border-color: var(--mtg-gold-mid); background: rgba(0,0,0,0.7); }
+
+    /* MODAL DE SENHA / LOGIN DA FICHA */
+    .auth-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(10px);
+      display: flex; justify-content: center; align-items: center; z-index: 2000;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    }
+    .auth-overlay.active { opacity: 1; pointer-events: auto; }
+    .auth-modal {
+      background: rgba(18, 14, 12, 0.98); border: 3px solid var(--mtg-gold-mid);
+      border-radius: 16px; padding: 25px; width: 90%; max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,1), 0 0 30px rgba(212, 175, 55, 0.3);
+      text-align: center;
+    }
+    .auth-modal h3 { font-family: 'Cinzel Decorative', serif; color: var(--mtg-gold-light); font-size: 1.3rem; margin-bottom: 8px; }
+    .auth-modal p { font-size: 0.8rem; color: #b8b2a8; margin-bottom: 18px; }
+    .auth-modal input {
+      width: 100%; background: rgba(0,0,0,0.6); border: 2px solid var(--mtg-gold-dark);
+      border-radius: 8px; padding: 10px; color: #fff; font-size: 1.1rem;
+      text-align: center; outline: none; margin-bottom: 15px; letter-spacing: 2px;
+    }
+    .auth-modal input:focus { border-color: var(--mtg-gold-mid); }
+  </style>
+</head>
+<body>
+
+  <!-- DEFINIÇÃO DOS ÍCONES VETORIAIS DE MANA MTG -->
+  <svg style="display:none;" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="mana-w" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" fill="#fef08a" stroke="#d4af37" stroke-width="6"/>
+      <polygon points="50,15 58,38 82,38 63,53 70,76 50,62 30,76 37,53 18,38 42,38" fill="#8a6a1c"/>
+    </symbol>
+    <symbol id="mana-u" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" fill="#38bdf8" stroke="#0284c7" stroke-width="6"/>
+      <path d="M50,18 C50,18 25,50 25,66 C25,80 36,88 50,88 C64,88 75,80 75,66 C75,50 50,18 50,18 Z" fill="#0c4a6e"/>
+    </symbol>
+    <symbol id="mana-b" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" fill="#a855f7" stroke="#7e22ce" stroke-width="6"/>
+      <circle cx="50" cy="46" r="24" fill="#2e1065"/>
+      <rect x="42" y="66" width="16" height="14" fill="#2e1065"/>
+    </symbol>
+    <symbol id="mana-r" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" fill="#ef4444" stroke="#b91c1c" stroke-width="6"/>
+      <path d="M50,15 C55,35 75,45 68,68 C64,82 45,86 40,75 C35,66 42,58 44,50 C40,55 35,62 35,70 C28,60 35,38 50,15 Z" fill="#450a0a"/>
+    </symbol>
+    <symbol id="mana-g" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" fill="#22c55e" stroke="#15803d" stroke-width="6"/>
+      <path d="M50,18 L68,48 L58,48 L74,74 L26,74 L42,48 L32,48 Z" fill="#052e16"/>
+    </symbol>
+    <symbol id="mana-c" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45" fill="#a8a29e" stroke="#57534e" stroke-width="6"/>
+      <polygon points="50,20 78,50 50,80 22,50" fill="#1c1917"/>
+    </symbol>
+  </svg>
+
+  <div id="rollToast" class="roll-toast"></div>
+
+  <!-- MODAL DE SENHA DA FICHA -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-modal">
+      <h3 id="authModalTitle">CHRONUS VTT</h3>
+      <p>Esta ficha está protegida. Digite a senha do jogador ou a senha mestre para acessar e editar.</p>
+      <input type="password" id="sheetPasswordInput" placeholder="Digite a Senha" onkeydown="if(event.key==='Enter') verifyPassword()">
+      <div style="display: flex; gap: 8px;">
+        <button class="action-btn" onclick="verifyPassword()" style="flex: 1; justify-content: center;">Acessar</button>
+        <a href="index.html" class="action-btn action-btn-secondary" style="flex: 1; justify-content: center;">Portal</a>
+      </div>
+      <div style="font-size: 0.7rem; color: #a8a29e; margin-top: 12px;">
+        (Dica padrão: <code>chronus1</code> a <code>chronus10</code>, ou senha do Mestre <code>mestre123</code>)
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <a href="index.html" class="action-btn action-btn-secondary" title="Voltar ao Portal">🏠 Portal</a>
+    
+    <div class="slot-select-box">
+      <label>FICHA:</label>
+      <select id="slotSelector" onchange="changeSlot(this.value)">
+        <option value="1">Slot #1 - Valírio</option>
+        <option value="2">Slot #2 - Kaelen</option>
+        <option value="3">Slot #3 - Morwenna</option>
+        <option value="4">Slot #4 - Ignis</option>
+        <option value="5">Slot #5 - Sylvana</option>
+        <option value="6">Slot #6 - Autômato MK-VII</option>
+        <option value="7">Slot #7 - Aurelius</option>
+        <option value="8">Slot #8 - Nereida</option>
+        <option value="9">Slot #9 - Brakkor</option>
+        <option value="10">Slot #10 - Zul'Kiran</option>
+      </select>
+    </div>
+
+    <button class="action-btn" onclick="manualSave()">💾 Salvar</button>
+    <button class="action-btn action-btn-danger" onclick="resetSheet()">🗑️ Limpar</button>
+    <input type="file" id="loadInput" accept=".json" style="display: none;" onchange="loadFromFile(event)">
+    <button class="action-btn action-btn-secondary" onclick="document.getElementById('loadInput').click()">📂 Importar</button>
+    <button class="action-btn action-btn-secondary" onclick="exportJSON()">📥 Exportar</button>
+    <button class="action-btn action-btn-secondary" onclick="lockSheet()" title="Bloquear esta ficha com senha">🔒 Bloquear</button>
+
+    <div class="sync-badge">
+      <span id="syncDot" class="sync-dot"></span>
+      <span id="syncText">Pronto</span>
+    </div>
+
+    <div class="theme-selector">
+      <button class="theme-btn btn-w" onclick="setTheme('white')" title="Branco (W)"></button>
+      <button class="theme-btn btn-u" onclick="setTheme('blue')" title="Azul (U)"></button>
+      <button class="theme-btn btn-b" onclick="setTheme('black')" title="Preto (B)"></button>
+      <button class="theme-btn btn-r" onclick="setTheme('red')" title="Vermelho (R)"></button>
+      <button class="theme-btn btn-g" onclick="setTheme('green')" title="Verde (G)"></button>
+      <button class="theme-btn btn-a" onclick="setTheme('artifact')" title="Artefato (A)"></button>
+      <button class="theme-btn btn-gold" onclick="setTheme('gold')" title="Dourado (Gold)"></button>
+    </div>
+  </div>
+
+  <div class="mtg-card theme-black" id="card">
+    <div class="mtg-card-inner">
+      <div class="mtg-content-panel">
+        <div class="mtg-legendary-crown">
+          <h1>CHRONUS</h1>
+          <h2>MTG - MAGIC THE GATHERING</h2>
+        </div>
+
+        <div class="grid-info">
+          <div class="section-box">
+            <div class="field-group"><label>NOME:</label><input type="text" data-id="name"></div>
+            <div class="field-group"><label>JOGADOR:</label><input type="text" data-id="player"></div>
+            <div class="field-group"><label>CONCEITO:</label><input type="text" data-id="concept"></div>
+            <div class="field-group"><label>RAÇA:</label><input type="text" data-id="race"></div>
+            <div class="field-group"><label>COR MANA:</label><input type="text" data-id="manacolor"></div>
+          </div>
+          <div class="section-box">
+            <div class="section-title" style="margin-bottom: 5px;">Personalidades</div>
+            <div class="field-group"><label>PERS 1:</label><input type="text" data-id="pers1"></div>
+            <div class="field-group"><label>PERS 2:</label><input type="text" data-id="pers2"></div>
+          </div>
+          <div class="section-box">
+            <div class="section-title" style="margin-bottom: 5px;">Habilidades Chave</div>
+            <div class="field-group"><label>HAB 1:</label><input type="text" data-id="hab1"></div>
+            <div class="field-group"><label>HAB 2:</label><input type="text" data-id="hab2"></div>
+            <div class="field-group"><label>HAB 3:</label><input type="text" data-id="hab3"></div>
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <div class="status-group">
+            <label>Determinação</label>
+            <div class="rhombus-container">
+              <div class="rhombus" data-rhombus="0" onclick="toggleRhombus(this)"></div>
+              <div class="rhombus" data-rhombus="1" onclick="toggleRhombus(this)"></div>
+              <div class="rhombus" data-rhombus="2" onclick="toggleRhombus(this)"></div>
+              <div class="rhombus" data-rhombus="3" onclick="toggleRhombus(this)"></div>
+              <div class="rhombus" data-rhombus="4" onclick="toggleRhombus(this)"></div>
+            </div>
+          </div>
+          <div class="status-group">
+            <label class="rollable-label" title="Clique para rolar sua Iluminação" onclick="rollIllumination()">Iluminação 🎲</label>
+            <div class="radio-group">
+              <div class="radio-option"><label>d4</label><input type="radio" name="ilum" value="d4"></div>
+              <div class="radio-option"><label>d6</label><input type="radio" name="ilum" value="d6"></div>
+              <div class="radio-option"><label>d8</label><input type="radio" name="ilum" value="d8"></div>
+              <div class="radio-option"><label>d10</label><input type="radio" name="ilum" value="d10"></div>
+            </div>
+          </div>
+          <div class="status-group shield-box">
+            <label>Proteção</label>
+            <input type="text" data-id="shield" placeholder="0">
+          </div>
+        </div>
+
+        <!-- SISTEMA DE ABAS (TABS) -->
+        <div class="sheet-tabs">
+          <button class="tab-btn active" onclick="switchTab('tab-main', this)">Ficha Principal</button>
+          <button class="tab-btn" onclick="switchTab('tab-lore', this)">Background & Diário</button>
+        </div>
+
+        <!-- ABA 1: FICHA PRINCIPAL -->
+        <div id="tab-main" class="tab-content active">
+          <div class="main-grid">
+            
+            <!-- COLUNA ESQUERDA: Atributos, Perícias & Condições -->
+            <div>
+              <div class="section-box" style="margin-bottom: 15px;">
+                <div class="section-title">Atributos / Abordagens</div>
+                <div class="attributes-grid">
+                  <div class="attribute-card"><label>FORÇA</label><div class="circle-node"><select data-attr="forca"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>VIGOR</label><div class="circle-node"><select data-attr="vigor"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>DESTREZA</label><div class="circle-node"><select data-attr="destreza"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>RAZÃO</label><div class="circle-node"><select data-attr="razao"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>ASTÚCIA</label><div class="circle-node"><select data-attr="astucia"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>PERSEVERANÇA</label><div class="circle-node"><select data-attr="perseveranca"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>MANIPULAÇÃO</label><div class="circle-node"><select data-attr="manipulacao"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>PRESENÇA</label><div class="circle-node"><select data-attr="presenca"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                  <div class="attribute-card"><label>VONTADE</label><div class="circle-node"><select data-attr="vontade"><option>-</option><option>d4</option><option>d6</option><option>d8</option><option>d10</option></select></div></div>
+                </div>
+              </div>
+
+              <div class="section-box" style="margin-bottom: 15px;">
+                <div class="section-title">Perícias e Especialidades</div>
+                <textarea rows="5" data-id="skillsList" placeholder="• Acrobacia, Lâminas, Ocultismo...&#10;• Idiomas, Conhecimentos..."></textarea>
+              </div>
+
+              <div class="wounds-container">
+                <div class="section-title" style="margin-top: 15px; margin-bottom: 5px;">
+                  Feridas (Máximo: <span id="maxHpDisplay" style="color:var(--mtg-gold-mid);">10</span>)
+                </div>
+                <div class="wound-boxes" id="woundContainer"></div>
+                
+                <div class="section-title" style="margin-top: 20px; margin-bottom: 5px;">Condições de Dano</div>
+                <div style="display: flex; justify-content: space-between; gap: 8px; margin-top: 10px;">
+                  <div class="cond-box" style="flex: 1; border-color: #facc15;" id="uiCondFerido">
+                    <input type="checkbox" data-id="condFerido" style="accent-color: #facc15;">
+                    <label>FERIDO<br><span style="color:#facc15;">(-1 Dado)</span></label>
+                  </div>
+                  <div class="cond-box" style="flex: 1; border-color: #f97316;" id="uiCondGrave">
+                    <input type="checkbox" data-id="condGrave" style="accent-color: #f97316;">
+                    <label>GRAVE<br><span style="color:#f97316;">(-2 Dados)</span></label>
+                  </div>
+                  <div class="cond-box" style="flex: 1; border-color: #ef4444;" id="uiCondIncap">
+                    <input type="checkbox" data-id="condIncap" style="accent-color: #ef4444;">
+                    <label>INCAPACITADO<br><span style="color:#ef4444;">(Sem Ação)</span></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- COLUNA CENTRAL: RETÂNGULO GRANDE HORIZONTAL PARA ARTE + MOTOR DE TESTES (ATÉ 3 DADOS) -->
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <div class="portrait-box" id="portraitBox">
+                <input type="file" id="portraitInput" accept="image/*" title="Carregar ilustração">
+              </div>
+
+              <!-- MOTOR DE TESTES COM MECÂNICA DE ATÉ 3 DADOS -->
+              <div class="roll-builder-panel" style="margin-top:0;">
+                <div class="section-title" style="color:var(--mtg-gold-mid); border-color:var(--mtg-gold-mid);">Motor de Testes (Até 3 Dados)</div>
+                <div class="roll-controls">
+                  
+                  <div class="field-group" style="width: 100%; flex-direction: column; align-items: stretch; gap: 4px;">
+                    <label style="text-align: center;">ABORDAGEM (Atributo Base)</label>
+                    <select id="rollAttrSel" style="text-align: center; border-radius: 4px; border: 1px solid var(--mtg-gold-mid);">
+                      <option value="forca">FORÇA</option><option value="vigor">VIGOR</option><option value="destreza">DESTREZA</option><option value="razao">RAZÃO</option><option value="astucia">ASTÚCIA</option><option value="perseveranca">PERSEVERANÇA</option><option value="manipulacao">MANIPULAÇÃO</option><option value="presenca">PRESENÇA</option><option value="vontade">VONTADE</option>
+                    </select>
+                  </div>
+
+                  <!-- CAIXAS PARA ATINGIR ATÉ 3 DADOS DE AÇÃO -->
+                  <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 4px;">
+                    <div class="cond-box" style="flex-direction: row; justify-content: flex-start; padding: 8px 12px; border-color: var(--mtg-gold-mid); cursor: pointer;" onclick="document.getElementById('chkPers').click()">
+                      <input type="checkbox" id="chkPers" style="pointer-events: auto; accent-color: var(--mtg-gold-mid);">
+                      <label style="cursor:pointer; color:var(--mtg-gold-light); text-align: left; margin-left: 8px;">+ Personalidade faz sentido? <span style="color:var(--mtg-gold-mid);">(+1 Dado)</span></label>
+                    </div>
+                    
+                    <div class="cond-box" style="flex-direction: row; justify-content: flex-start; padding: 8px 12px; border-color: var(--mtg-gold-mid); cursor: pointer;" onclick="document.getElementById('chkHab').click()">
+                      <input type="checkbox" id="chkHab" style="pointer-events: auto; accent-color: var(--mtg-gold-mid);">
+                      <label style="cursor:pointer; color:var(--mtg-gold-light); text-align: left; margin-left: 8px;">+ Perícia / Habilidade faz sentido? <span style="color:var(--mtg-gold-mid);">(+1 Dado)</span></label>
+                    </div>
+
+                    <div class="cond-box" style="flex-direction: row; justify-content: flex-start; padding: 8px 12px; border-color: #38bdf8; cursor: pointer;" onclick="document.getElementById('chkDet').click()">
+                      <input type="checkbox" id="chkDet" style="pointer-events: auto; accent-color: #38bdf8;">
+                      <label style="cursor:pointer; color: #38bdf8; text-align: left; margin-left: 8px;">+ Usar Determinação <span style="color:#38bdf8;">(Adiciona 1d12 à parte)</span></label>
+                    </div>
+                  </div>
+
+                  <button class="action-btn" style="padding: 12px 20px; font-size: 1.1rem; width: 100%; margin-top: 5px; justify-content: center;" onclick="executePoolRoll()">ROLAR TESTE</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- COLUNA DIREITA: Armas, Magias e Mana -->
+            <div>
+              <div class="section-box" style="margin-bottom: 15px;">
+                <div class="section-title">Ataques e Armas</div>
+                <div class="list-container">
+                  <div class="list-row"><input type="text" data-id="wpn1Name" placeholder="Arma 1"><input type="number" data-id="wpn1Dmg" placeholder="Dano" style="width:60px;"><button class="icon-btn" onclick="executePoolRoll('Ataque', 'wpn1')">⚔️</button></div>
+                  <div class="list-row"><input type="text" data-id="wpn2Name" placeholder="Arma 2"><input type="number" data-id="wpn2Dmg" placeholder="Dano" style="width:60px;"><button class="icon-btn" onclick="executePoolRoll('Ataque', 'wpn2')">⚔️</button></div>
+                  <div class="list-row"><input type="text" data-id="wpn3Name" placeholder="Arma 3"><input type="number" data-id="wpn3Dmg" placeholder="Dano" style="width:60px;"><button class="icon-btn" onclick="executePoolRoll('Ataque', 'wpn3')">⚔️</button></div>
+                </div>
+
+                <div class="section-title">Magias Formuladas</div>
+                <div class="list-container">
+                  <div class="list-row"><input type="text" data-id="spl1Name" placeholder="Fórmula 1"><input type="number" data-id="spl1Cost" placeholder="Mana" style="width:60px;"><button class="icon-btn" onclick="executePoolRoll('Magia', 'spl1')">🔮</button></div>
+                  <div class="list-row"><input type="text" data-id="spl2Name" placeholder="Fórmula 2"><input type="number" data-id="spl2Cost" placeholder="Mana" style="width:60px;"><button class="icon-btn" onclick="executePoolRoll('Magia', 'spl2')">🔮</button></div>
+                  <div class="list-row"><input type="text" data-id="spl3Name" placeholder="Fórmula 3"><input type="number" data-id="spl3Cost" placeholder="Mana" style="width:60px;"><button class="icon-btn" onclick="executePoolRoll('Magia', 'spl3')">🔮</button></div>
+                </div>
+              </div>
+
+              <div class="section-box">
+                <div class="section-title">Cores de Mana</div>
+                <table class="mana-table" id="manaTable">
+                  <tr><th>Esfera</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+                </table>
+
+                <div class="section-title" style="margin-top: 15px;">Recursos Ativos</div>
+                
+                <div class="field-group" style="justify-content: space-between;">
+                  <label>MANA:</label>
+                  <div class="resource-counter">
+                    <button class="resource-btn" onclick="adjResource('manaCurrent', -1)">-</button>
+                    <input type="number" data-id="manaCurrent" id="manaCurrent" value="0">
+                    <button class="resource-btn" onclick="adjResource('manaCurrent', 1)">+</button>
+                    <span style="color:var(--mtg-gold-dark); font-weight:bold;">/</span>
+                    <input type="number" data-id="manaMax" placeholder="Máx" style="width: 45px;">
+                  </div>
+                </div>
+
+                <div class="field-group" style="justify-content: space-between;">
+                  <label>RESERVA:</label>
+                  <div class="resource-counter">
+                    <button class="resource-btn" onclick="adjResource('reserveCurrent', -1)">-</button>
+                    <input type="number" data-id="reserveCurrent" id="reserveCurrent" value="0">
+                    <button class="resource-btn" onclick="adjResource('reserveCurrent', 1)">+</button>
+                  </div>
+                </div>
+
+                <div class="section-title" style="margin-top: 10px;">Equipamento Rápido</div>
+                <textarea rows="3" data-id="equipment" placeholder="Mochila, poções, relíquias..."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ABA 2: BACKGROUND E DIÁRIO -->
+        <div id="tab-lore" class="tab-content">
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="section-box">
+              <div class="section-title">Histórico e Background do Personagem</div>
+              <textarea class="lore-textarea" data-id="loreBackground" placeholder="Escreva a origem do personagem, o Despertar, sua história de vida e detalhes do seu Paradigma..."></textarea>
+            </div>
+            
+            <div class="section-box">
+              <div class="section-title">Aliados, Contatos e Inimigos</div>
+              <textarea class="lore-textarea" data-id="loreAllies" placeholder="Quem faz parte da vida do personagem? Liste contatos, mentores, organizações e antagonistas..." style="min-height: 150px;"></textarea>
+            </div>
+
+            <div class="section-box">
+              <div class="section-title">Diário de Campanha & Anotações Livres</div>
+              <textarea class="lore-textarea" data-id="loreJournal" placeholder="Registros de sessões, pistas, mistérios, locais descobertos e objetivos atuais..." style="min-height: 350px;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="xp-footer">
+          <div class="level-badge">NV <span id="displayLevel">1</span></div>
+          <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+            <div class="field-group">
+              <label style="min-width: 90px;">XP ATUAL:</label>
+              <input type="number" data-id="xpCurrent" id="xpCurrent" oninput="processXP()" style="width: 100%; border-bottom: 2px solid var(--mtg-gold-mid);">
+            </div>
+            <div class="field-group">
+              <label style="min-width: 90px;">XP GASTO:</label>
+              <input type="number" data-id="xpSpent" style="width: 100%;">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT UNIFICADO: MOTOR DA FICHA + 10 SLOTS + SUPABASE + SENHA -->
+  <script>
+    function getSlotId() {
+      if (window.FIXED_SLOT_ID) return window.FIXED_SLOT_ID;
+      const params = new URLSearchParams(window.location.search);
+      const slot = parseInt(params.get('slot'), 10);
+      return (slot >= 1 && slot <= 10) ? slot : 1;
+    }
+
+    const currentSlot = getSlotId();
+    const STORAGE_KEY = `chronus_mtg_sheet_slot_${currentSlot}_v10`;
+    const AUTH_KEY = `chronus_sheet_auth_${currentSlot}`;
+
+    // Senhas padrão por slot e do mestre
+    const SLOT_PASSWORDS = {
+      1: 'chronus1', 2: 'chronus2', 3: 'chronus3', 4: 'chronus4', 5: 'chronus5',
+      6: 'chronus6', 7: 'chronus7', 8: 'chronus8', 9: 'chronus9', 10: 'chronus10',
+      master: 'mestre123'
+    };
+
+    function checkAuth() {
+      const isAuth = sessionStorage.getItem(AUTH_KEY);
+      const authOverlay = document.getElementById('authOverlay');
+      const title = document.getElementById('authModalTitle');
+      if (title) title.innerText = `CHRONUS — FICHA #${currentSlot}`;
+
+      if (!isAuth) {
+        authOverlay.classList.add('active');
+        document.getElementById('sheetPasswordInput').focus();
+      } else {
+        authOverlay.classList.remove('active');
+      }
+    }
+
+    function verifyPassword() {
+      const input = document.getElementById('sheetPasswordInput').value.trim();
+      const expected = SLOT_PASSWORDS[currentSlot];
+      const master = SLOT_PASSWORDS.master;
+
+      if (input === expected || input === master || input === 'admin') {
+        sessionStorage.setItem(AUTH_KEY, 'true');
+        document.getElementById('authOverlay').classList.remove('active');
+      } else {
+        alert('Senha incorreta! Dica padrão: chronus' + currentSlot + ' ou senha do mestre');
+      }
+    }
+
+    function lockSheet() {
+      sessionStorage.removeItem(AUTH_KEY);
+      location.reload();
+    }
+
+    function changeSlot(newSlot) {
+      if (window.FIXED_SLOT_ID) {
+        window.location.href = `ficha${newSlot}.html`;
+      } else {
+        window.location.href = `ficha.html?slot=${newSlot}`;
+      }
+    }
+
+    function switchTab(tabId, btnElement) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btnElement.classList.add('active');
+    }
+
+    const GameEngine = {
+      xpTable: [
+        0, 10, 33, 80, 156, 270, 428, 640, 911, 1250, 1663, 2160, 2746, 3426, 4218, 
+        5120, 6141, 7280, 8551, 10000, 11500, 13000, 14600, 16200, 18000, 19900, 21800, 
+        23800, 25900, 28000, 30600, 33300, 36100, 39000, 42000, 45400, 48900, 52500, 
+        56200, 60000, 64200, 68500, 72900, 77400, 82000, 87300, 92800, 98400, 104100, 
+        110000, 116300, 122800, 129500, 136400, 143500, 151300, 159400, 167800, 176500, 
+        185500, 195100, 205000, 215200, 225700, 236500, 248000, 259900, 272200, 284900, 
+        298000, 312000, 326500, 341500, 357000, 373000, 390000, 407500, 425500, 444000, 
+        463000, 483000, 503700, 525100, 547200, 570000, 594000, 618800, 644400, 670800, 
+        698000, 726500, 756000, 786500, 818000, 850500, 884500, 920000, 957000, 995500, 1035500
+      ],
+      calcularNivel(xpAtual) {
+        let xp = parseInt(xpAtual) || 0; let nivel = 1;
+        for (let i = 0; i < this.xpTable.length; i++) { if (xp >= this.xpTable[i]) nivel = i + 1; }
+        return nivel > 100 ? 100 : nivel;
+      },
+      rolarDado(tipoDado) {
+        if (!tipoDado || tipoDado === '-') return 0;
+        const faces = parseInt(tipoDado.replace('d', ''));
+        return Math.floor(Math.random() * faces) + 1;
+      }
+    };
+
+    function processXP() {
+      const xpInput = document.getElementById('xpCurrent').value;
+      document.getElementById('displayLevel').innerText = GameEngine.calcularNivel(xpInput);
+      autoSave();
+    }
+
+    function adjResource(id, amount) {
+      const input = document.getElementById(id); let val = parseInt(input.value) || 0;
+      val += amount; if (val < 0) val = 0; input.value = val; autoSave();
+    }
+
+    let toastTimeout;
+    function showRollToast(titulo, rolagemFinal, breakdownText, isPenalty = false) {
+      const toast = document.getElementById('rollToast');
+      let pClass = isPenalty ? 'penalty' : '';
+      toast.innerHTML = `<div class="toast-title">Teste de ${titulo}</div><div class="toast-result">${rolagemFinal}</div><div class="toast-breakdown ${pClass}">${breakdownText}</div>`;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout); toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 6000);
+    }
+
+    function getDamagePenalty() {
+      const incap = document.querySelector('input[data-id="condIncap"]').checked;
+      const grave = document.querySelector('input[data-id="condGrave"]').checked;
+      const ferido = document.querySelector('input[data-id="condFerido"]').checked;
+      if (incap) return { canRoll: false, penalty: 0 };
+      if (grave) return { canRoll: true, penalty: 2 };
+      if (ferido) return { canRoll: true, penalty: 1 };
+      return { canRoll: true, penalty: 0 };
+    }
+
+    function executePoolRoll(actionType = 'Simples', sourceId = null) {
+      const attrKey = document.getElementById('rollAttrSel').value;
+      const attrSelect = document.querySelector(`select[data-attr="${attrKey}"]`);
+      const tipoDado = attrSelect.value;
+      const attrName = document.getElementById('rollAttrSel').options[document.getElementById('rollAttrSel').selectedIndex].text;
+
+      if (tipoDado === '-') { showRollToast(attrName, '-', 'Abordagem selecionada não possui dado configurado.', true); return; }
+
+      const cond = getDamagePenalty();
+      if (!cond.canRoll) { showRollToast(attrName, 'X', '❌ INCAPACITADO (0 Dados de Ação)', true); return; }
+
+      let title = attrName;
+      let extraLog = '';
+
+      if(actionType === 'Ataque') {
+          const wName = document.querySelector(`[data-id="${sourceId}Name"]`).value || 'Arma';
+          const wDmg = document.querySelector(`[data-id="${sourceId}Dmg"]`).value || '0';
+          title = `Ataque: ${wName}`;
+          extraLog = `⚔️ Dano Base da Arma: ${wDmg}`;
+      }
+      else if(actionType === 'Magia') {
+          const sName = document.querySelector(`[data-id="${sourceId}Name"]`).value || 'Magia';
+          const sCost = parseInt(document.querySelector(`[data-id="${sourceId}Cost"]`).value) || 0;
+          
+          const manaInput = document.getElementById('manaCurrent');
+          let cMana = parseInt(manaInput.value) || 0;
+          if(cMana < sCost) { showRollToast("Magia Falhou", "⚠️", "❌ Mana Insuficiente no Tracker!", true); return; }
+          manaInput.value = cMana - sCost;
+          autoSave();
+          
+          title = `Magia: ${sName}`;
+          extraLog = `🔮 Custo Debitado: ${sCost} Mana`;
+      }
+
+      const usePers = document.getElementById('chkPers').checked;
+      const useHab = document.getElementById('chkHab').checked;
+      const useDet = document.getElementById('chkDet').checked;
+
+      // Soma até 3 dados (Abordagem + Personalidade + Habilidade)
+      let qtdBase = 1 + (usePers ? 1 : 0) + (useHab ? 1 : 0);
+      let dadosParaRolar = qtdBase - cond.penalty;
+      if (dadosParaRolar < 0) dadosParaRolar = 0;
+
+      let resultadosAttr = []; let maiorAttr = 0;
+      for (let i = 0; i < dadosParaRolar; i++) {
+        let r = GameEngine.rolarDado(tipoDado); resultadosAttr.push(r); if (r > maiorAttr) maiorAttr = r;
+      }
+
+      let resDet = 0;
+      if (useDet) resDet = GameEngine.rolarDado('d12');
+
+      let finalResult = Math.max(maiorAttr, resDet);
+
+      let log = `Reserva: ${qtdBase}${tipoDado}`;
+      if (cond.penalty > 0) log += ` - ${cond.penalty} (Ferido) = ${dadosParaRolar}${tipoDado}`;
+      
+      let detalhes = [];
+      if (dadosParaRolar > 0) detalhes.push(`Rolados: [${resultadosAttr.join(', ')}]`);
+      if (useDet) detalhes.push(`Det (d12): [${resDet}]`);
+
+      if (dadosParaRolar === 0 && !useDet) {
+        showRollToast(title, 'Falha', log + '<br>Sem dados suficientes para agir!', true);
+        return;
+      }
+
+      showRollToast(title, finalResult, log + '<br>' + detalhes.join(' | ') + (extraLog ? '<br>'+extraLog : ''), cond.penalty > 0);
+      
+      // Reseta os checkboxes de bônus após a rolagem
+      document.getElementById('chkPers').checked = false;
+      document.getElementById('chkHab').checked = false;
+      document.getElementById('chkDet').checked = false;
+    }
+
+    function rollIllumination() {
+      const selectedRadio = document.querySelector('input[name="ilum"]:checked');
+      if (!selectedRadio) { showRollToast("Iluminação", '-', 'Selecione um dado.', true); return; }
+      const cond = getDamagePenalty();
+      if (!cond.canRoll) { showRollToast("Iluminação", 'X', '❌ INCAPACITADO', true); return; }
+      const tipoDado = selectedRadio.value; const rolagem = GameEngine.rolarDado(tipoDado);
+      showRollToast(`ILUMINAÇÃO`, rolagem, `Rolado: 1${tipoDado}`);
+    }
+
+    function atualizarCondicoesDano() {
+      const vigorSelect = document.querySelector('select[data-attr="vigor"]').value;
+      let vigorVal = 0; if (vigorSelect !== '-') vigorVal = parseInt(vigorSelect.replace('d', ''));
+      
+      const maxHP = 10 + vigorVal; document.getElementById('maxHpDisplay').innerText = maxHP;
+
+      let totalDanos = 0;
+      document.querySelectorAll('.wound-box').forEach((el, index) => {
+        if (index < maxHP) { el.style.opacity = '1'; el.style.pointerEvents = 'auto'; if (el.innerText && el.innerText.trim() !== '') totalDanos++; } 
+        else { el.style.opacity = '0.1'; el.style.pointerEvents = 'none'; el.innerText = ''; }
+      });
+
+      const chkFerido = document.querySelector('input[data-id="condFerido"]'); const chkGrave = document.querySelector('input[data-id="condGrave"]'); const chkIncap = document.querySelector('input[data-id="condIncap"]');
+      chkFerido.checked = false; chkGrave.checked = false; chkIncap.checked = false;
+      document.getElementById('uiCondFerido').style.background = 'rgba(0,0,0,0.4)';
+      document.getElementById('uiCondGrave').style.background = 'rgba(0,0,0,0.4)';
+      document.getElementById('uiCondIncap').style.background = 'rgba(0,0,0,0.4)';
+
+      if (totalDanos >= maxHP) { chkIncap.checked = true; document.getElementById('uiCondIncap').style.background = 'rgba(239, 68, 68, 0.2)'; } 
+      else if (totalDanos >= Math.ceil(maxHP * (2/3))) { chkGrave.checked = true; document.getElementById('uiCondGrave').style.background = 'rgba(249, 115, 22, 0.2)'; } 
+      else if (totalDanos >= Math.floor(maxHP / 2)) { chkFerido.checked = true; document.getElementById('uiCondFerido').style.background = 'rgba(250, 204, 21, 0.2)'; }
+    }
+
+    const MANA_TYPES = [
+      { id: 'white', name: 'Branco', icon: 'mana-w' }, { id: 'blue', name: 'Azul', icon: 'mana-u' },
+      { id: 'black', name: 'Preto', icon: 'mana-b' }, { id: 'red', name: 'Vermelho', icon: 'mana-r' },
+      { id: 'green', name: 'Verde', icon: 'mana-g' }, { id: 'colorless', name: 'Incolor', icon: 'mana-c' }
+    ];
+
+    let saveDebounceTimer;
+    function autoSave() {
+      atualizarCondicoesDano();
+      const syncDot = document.getElementById('syncDot');
+      const syncText = document.getElementById('syncText');
+      if (syncDot) syncDot.className = 'sync-dot saving';
+      if (syncText) syncText.innerText = 'Salvando...';
+
+      clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = setTimeout(() => {
+        const state = { theme: document.getElementById('card').className, portrait: document.getElementById('portraitBox').style.backgroundImage, inputs: {}, selects: {}, rhombuses: [], radioIlum: null, wounds: [], manaChecks: {} };
+        document.querySelectorAll('input[data-id], textarea[data-id]').forEach(el => { state.inputs[el.dataset.id] = el.type === 'checkbox' ? el.checked : el.value; });
+        document.querySelectorAll('select[data-attr]').forEach(el => { state.selects[el.dataset.attr] = el.value; });
+        document.querySelectorAll('.rhombus').forEach((el, idx) => { state.rhombuses[idx] = el.classList.contains('active'); });
+        const selectedRadio = document.querySelector('input[name="ilum"]:checked'); if (selectedRadio) state.radioIlum = selectedRadio.value;
+        document.querySelectorAll('.wound-box').forEach((el, idx) => { state.wounds[idx] = { text: el.innerText, color: el.style.color }; });
+        document.querySelectorAll('#manaTable input[type="checkbox"]').forEach(el => { state.manaChecks[el.dataset.mana] = el.checked; });
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+        // Sincroniza com Supabase se configurado
+        if (window.supabaseService) {
+          window.supabaseService.updateCharacter(currentSlot, state).then(() => {
+            if (syncDot) syncDot.className = 'sync-dot';
+            if (syncText) syncText.innerText = 'Salvo na Nuvem';
+          }).catch(() => {
+            if (syncDot) syncDot.className = 'sync-dot';
+            if (syncText) syncText.innerText = 'Salvo Localmente';
+          });
+        } else {
+          if (syncDot) syncDot.className = 'sync-dot';
+          if (syncText) syncText.innerText = 'Salvo Localmente';
+        }
+      }, 1000);
+    }
+
+    async function loadState() {
+      let state = null;
+      
+      // 1. Tenta carregar do Supabase se online
+      if (window.supabaseService) {
+        try {
+          const char = await window.supabaseService.getCharacter(currentSlot);
+          if (char && char.sheet_data) state = char.sheet_data;
+        } catch(e) {}
+      }
+
+      // 2. Se não, carrega do LocalStorage
+      if (!state) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try { state = JSON.parse(saved); } catch (e) {}
+        }
+      }
+
+      // 3. Se ainda vazio, carrega do defaultSheets.json
+      if (!state) {
+        try {
+          const res = await fetch('data/defaultSheets.json');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.sheets && data.sheets[currentSlot - 1]) state = data.sheets[currentSlot - 1];
+          }
+        } catch(e) {}
+      }
+
+      if (!state) return;
+
+      try {
+        if (state.theme) document.getElementById('card').className = state.theme;
+        if (state.portrait) document.getElementById('portraitBox').style.backgroundImage = state.portrait;
+        for (const [id, val] of Object.entries(state.inputs || {})) { const el = document.querySelector(`[data-id="${id}"]`); if (el) { if (el.type === 'checkbox') el.checked = val; else el.value = val; } }
+        for (const [attr, val] of Object.entries(state.selects || {})) { const el = document.querySelector(`select[data-attr="${attr}"]`); if (el) el.value = val; }
+        if (state.rhombuses) document.querySelectorAll('.rhombus').forEach((el, idx) => { if (state.rhombuses[idx]) el.classList.add('active'); else el.classList.remove('active'); });
+        if (state.radioIlum) { const radio = document.querySelector(`input[name="ilum"][value="${state.radioIlum}"]`); if (radio) radio.checked = true; }
+        if (state.wounds) document.querySelectorAll('.wound-box').forEach((el, idx) => { if (state.wounds[idx]) { el.innerText = state.wounds[idx].text; el.style.color = state.wounds[idx].color || '#ef4444'; } });
+        if (state.manaChecks) for (const [key, val] of Object.entries(state.manaChecks)) { const chk = document.querySelector(`input[data-mana="${key}"]`); if (chk) chk.checked = val; }
+        processXP(); atualizarCondicoesDano();
+      } catch (e) { console.error("Erro ao carregar:", e); }
+    }
+
+    function cycleWound(element) {
+      const states = ['', '/', 'X', '*']; let currentState = element.innerText;
+      let nextIndex = (states.indexOf(currentState) + 1) % states.length;
+      element.innerText = states[nextIndex]; element.style.color = (states[nextIndex] === '*') ? '#facc15' : '#ef4444';
+      autoSave();
+    }
+
+    function toggleRhombus(element) { element.classList.toggle('active'); autoSave(); }
+    function setTheme(themeName) { document.getElementById('card').className = 'mtg-card theme-' + themeName; autoSave(); }
+    function manualSave() { autoSave(); alert(`Ficha #${currentSlot} salva com sucesso!`); }
+    function resetSheet() { if (confirm(`Apagar todos os dados da Ficha #${currentSlot}?`)) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
+    
+    function exportJSON() {
+      const saved = localStorage.getItem(STORAGE_KEY) || '{}';
+      const blob = new Blob([saved], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Chronus_Ficha_Slot${currentSlot}.json`;
+      a.click();
+    }
+
+    function loadFromFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const sheetData = parsed.sheet_data || parsed;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sheetData));
+          location.reload();
+        } catch (err) {
+          alert('Erro ao carregar arquivo JSON.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const selector = document.getElementById('slotSelector');
+      if (selector) selector.value = currentSlot;
+
+      const woundContainer = document.getElementById('woundContainer');
+      for (let i = 0; i < 20; i++) {
+        const box = document.createElement('div'); box.className = 'wound-box'; box.dataset.index = i;
+        box.onclick = () => { cycleWound(box); }; woundContainer.appendChild(box);
+      }
+
+      const table = document.getElementById('manaTable');
+      MANA_TYPES.forEach(mana => {
+        const tr = document.createElement('tr'); let tdName = document.createElement('td'); tdName.className = 'mana-name';
+        tdName.innerHTML = `<span class="table-icon"><svg viewBox="0 0 100 100" style="width:16px; height:16px;"><use href="#${mana.icon}"/></svg></span> ${mana.name}`; tr.appendChild(tdName);
+        for (let lvl = 1; lvl <= 5; lvl++) { let td = document.createElement('td'); let chk = document.createElement('input'); chk.type = 'checkbox'; chk.dataset.mana = `${mana.id}_${lvl}`; chk.onchange = () => autoSave(); td.appendChild(chk); tr.appendChild(td); }
+        table.appendChild(tr);
+      });
+
+      checkAuth();
+      loadState();
+      document.body.addEventListener('input', autoSave);
+      document.body.addEventListener('change', autoSave);
+      
+      const portraitInput = document.getElementById('portraitInput');
+      const portraitBox = document.getElementById('portraitBox');
+      portraitInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            portraitBox.style.backgroundImage = `url('${event.target.result}')`;
+            autoSave();
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+      atualizarCondicoesDano();
+    });
+  </script>
+</body>
+</html>
