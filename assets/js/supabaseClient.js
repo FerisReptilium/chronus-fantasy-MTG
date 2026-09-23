@@ -184,6 +184,13 @@ class SupabaseService {
     if (!this.client) return { success: true, offline: true };
 
     try {
+      // Extrai a URL limpa do retrato (remove wrapper url("...") do CSS backgroundImage)
+      let avatarUrl = payload.portrait || payload.avatar_url || '';
+      if (avatarUrl) {
+        const match = avatarUrl.match(/url\(["']?(.*?)["']?\)/s);
+        if (match) avatarUrl = match[1];
+      }
+
       const updateData = {
         slot_id: slot,
         name: payload.inputs?.name || payload.name || `Personagem ${slot}`,
@@ -198,7 +205,7 @@ class SupabaseService {
         current_wounds: parseInt(payload.current_wounds, 10) || 0,
         current_mana: parseInt(payload.inputs?.manaCurrent, 10) || 0,
         max_mana: parseInt(payload.inputs?.manaMax, 10) || 10,
-        avatar_url: payload.portrait || '',
+        avatar_url: avatarUrl,
         sheet_data: payload,
         updated_at: new Date().toISOString()
       };

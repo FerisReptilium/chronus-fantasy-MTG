@@ -92,20 +92,35 @@ class PortalHub {
     const concept = inputs.concept || charData?.concept || 'Sem conceito definido';
     const manaColor = inputs.manacolor || charData?.mana_color || 'Incolor';
     const theme = data.theme ? data.theme.replace('mtg-card ', '').replace('theme-', '') : 'black';
-    const portrait = data.portrait || charData?.avatar_url || '';
     const xp = inputs.xpCurrent || charData?.xp || 0;
     const level = window.GameEngine ? window.GameEngine.calcularNivel(xp) : 1;
     const currentMana = inputs.manaCurrent || charData?.current_mana || 0;
     const maxMana = inputs.manaMax || charData?.max_mana || 10;
 
+    // Extrai a URL do retrato — salvo como CSS backgroundImage: url("data:...") ou como data-URL pura
+    let portraitRaw = data.portrait || charData?.avatar_url || '';
+    let portraitSrc = '';
+    if (portraitRaw) {
+      const match = portraitRaw.match(/url\(["']?(.*?)["']?\)/s);
+      portraitSrc = match ? match[1] : portraitRaw;
+    }
+
+    // Silhueta de placeholder quando não há foto
+    const placeholderSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100" width="60" height="75" style="opacity:0.18">
+      <ellipse cx="40" cy="28" rx="18" ry="20" fill="#d4af37"/>
+      <path d="M10 100 Q10 65 40 60 Q70 65 70 100Z" fill="#d4af37"/>
+    </svg>`;
+
     const cardDiv = document.createElement('div');
     cardDiv.className = `slot-card theme-${theme}`;
-    
+
     cardDiv.innerHTML = `
       <div class="slot-badge-number">Slot #${slotId}</div>
       <div class="slot-card-inner">
-        <div class="slot-portrait-thumb" style="${portrait ? `background-image: ${portrait};` : ''}">
-          <div style="background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px; width: 100%;">
+
+        <div class="slot-portrait-thumb" style="${portraitSrc ? `background-image: url('${portraitSrc}');` : 'display:flex; align-items:center; justify-content:center;'}">
+          ${!portraitSrc ? placeholderSVG : ''}
+          <div style="background: rgba(0,0,0,0.72); padding: 5px 9px; border-radius: 5px; width: 100%; position:absolute; bottom:0; left:0;">
             <div class="slot-char-name">${name}</div>
             <div class="slot-char-concept">${concept}</div>
           </div>
