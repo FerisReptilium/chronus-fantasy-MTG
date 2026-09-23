@@ -133,8 +133,9 @@ class SupabaseService {
     }
 
     // Fallback: LocalStorage
-    const localKey = `chronus_sheet_slot_${slot}`;
-    const localData = localStorage.getItem(localKey);
+    const localKey = `chronus_mtg_sheet_slot_${slot}_v10`;
+    const legacyLocalKey = `chronus_sheet_slot_${slot}`;
+    const localData = localStorage.getItem(localKey) || localStorage.getItem(legacyLocalKey);
     if (localData) {
       try {
         return JSON.parse(localData);
@@ -179,6 +180,8 @@ class SupabaseService {
     const slot = parseInt(slotId, 10);
     
     // Sempre salva no LocalStorage imediatamente
+    localStorage.setItem(`chronus_mtg_sheet_slot_${slot}_v10`, JSON.stringify(payload));
+    // Mantém compatibilidade com versões anteriores do portal.
     localStorage.setItem(`chronus_sheet_slot_${slot}`, JSON.stringify(payload));
 
     if (!this.client) return { success: true, offline: true };
@@ -215,10 +218,10 @@ class SupabaseService {
         .upsert(updateData, { onConflict: 'slot_id' });
 
       if (error) throw error;
-      return { success: true, data };
+      return { success: true, offline: false, data };
     } catch (e) {
-      console.warn('Erro ao sincronizar com Supabase:', e);
-      return { success: true, offline: true, error: e };
+      console.error('Erro ao sincronizar com Supabase:', e);
+      return { success: false, offline: true, error: e };
     }
   }
 
