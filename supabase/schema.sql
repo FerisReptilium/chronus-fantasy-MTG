@@ -18,7 +18,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- 3. TABELA DE FICHAS DE PERSONAGENS (10 SLOTS DEDICADOS)
-CREATE TABLE IF NOT EXISTS public.characters (
+-- Remove versão anterior caso tenha sido criada com estrutura diferente
+DROP TABLE IF EXISTS public.characters CASCADE;
+
+CREATE TABLE public.characters (
   slot_id INTEGER PRIMARY KEY CHECK (slot_id BETWEEN 1 AND 10),
   name TEXT NOT NULL DEFAULT 'Novo Personagem',
   player_name TEXT DEFAULT '',
@@ -41,7 +44,10 @@ CREATE TABLE IF NOT EXISTS public.characters (
 );
 
 -- 4. TABELA DE LOGS DE ROLAGENS (VTT REALTIME)
-CREATE TABLE IF NOT EXISTS public.dice_logs (
+DROP TABLE IF EXISTS public.dice_logs CASCADE;
+
+CREATE TABLE public.dice_logs (
+
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   slot_id INTEGER REFERENCES public.characters(slot_id) ON DELETE SET NULL,
   character_name TEXT NOT NULL,
