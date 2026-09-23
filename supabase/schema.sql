@@ -71,6 +71,13 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.characters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dice_logs ENABLE ROW LEVEL SECURITY;
 
+-- 6.1 GRANTS EXPLÍCITOS PARA O DATA API
+-- O upsert usado pela ficha precisa de SELECT + INSERT + UPDATE.
+GRANT SELECT, INSERT, UPDATE ON TABLE public.characters TO anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.dice_logs TO anon, authenticated;
+GRANT SELECT, UPDATE ON TABLE public.profiles TO authenticated;
+GRANT SELECT ON TABLE public.profiles TO anon;
+
 -- 7. POLÍTICAS RLS PARA PROFILES
 DROP POLICY IF EXISTS "Perfis públicos para leitura de autenticados" ON public.profiles;
 CREATE POLICY "Perfis públicos para leitura de autenticados" 
@@ -140,6 +147,9 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'role', 'player')
   )
   ON CONFLICT (id) DO NOTHING;
+  UPDATE public.profiles
+  SET assigned_slot = NULLIF(new.raw_user_meta_data->>'assigned_slot', '')::integer
+  WHERE id = new.id AND new.raw_user_meta_data->>'assigned_slot' IS NOT NULL;
   RETURN NEW;
 END;
 $$;
