@@ -6,10 +6,10 @@
 const CONFIG_STORAGE_KEY = 'chronus_supabase_config_v1';
 
 const DEFAULT_CONFIG = {
-  supabaseUrl: '',      // Ex: 'https://xyzcompany.supabase.co'
-  supabaseAnonKey: '',  // Ex: 'eyJhbGciOiJIUzI1NiIsIn...'
-  isConfigured: false,
-  offlineMode: true,
+  supabaseUrl: 'https://drsdohivbrmlmvrgklol.supabase.co',
+  supabaseAnonKey: 'sb_publishable_Y9FfzMibUT5KsM13z9DM_A_YBOGBd2Z',
+  isConfigured: true,
+  offlineMode: false,
   autoSyncDelay: 1500,  // Debounce para auto-salvamento em ms
   soundEnabled: true
 };
