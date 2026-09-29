@@ -869,82 +869,216 @@
     let saveDebounceTimer;
     function autoSave() {
       atualizarCondicoesDano();
+
       const syncDot = document.getElementById('syncDot');
       const syncText = document.getElementById('syncText');
+
       if (syncDot) syncDot.className = 'sync-dot saving';
       if (syncText) syncText.innerText = 'Salvando...';
 
       clearTimeout(saveDebounceTimer);
-      saveDebounceTimer = setTimeout(() => {
-        const state = { theme: document.getElementById('card').className, portrait: document.getElementById('portraitBox').style.backgroundImage, inputs: {}, selects: {}, rhombuses: [], radioIlum: null, wounds: [], manaChecks: {} };
-        document.querySelectorAll('input[data-id], textarea[data-id]').forEach(el => { state.inputs[el.dataset.id] = el.type === 'checkbox' ? el.checked : el.value; });
-        document.querySelectorAll('select[data-attr]').forEach(el => { state.selects[el.dataset.attr] = el.value; });
-        document.querySelectorAll('.rhombus').forEach((el, idx) => { state.rhombuses[idx] = el.classList.contains('active'); });
-        const selectedRadio = document.querySelector('input[name="ilum"]:checked'); if (selectedRadio) state.radioIlum = selectedRadio.value;
-        document.querySelectorAll('.wound-box').forEach((el, idx) => { state.wounds[idx] = { text: el.innerText, color: el.style.color }; });
-        document.querySelectorAll('#manaTable input[type="checkbox"]').forEach(el => { state.manaChecks[el.dataset.mana] = el.checked; });
-        
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-        // Sincroniza com Supabase se configurado
-        if (window.supabaseService) {
-          window.supabaseService.updateCharacter(currentSlot, state).then(() => {
-            if (syncDot) syncDot.className = 'sync-dot';
-            if (syncText) syncText.innerText = 'Salvo na Nuvem';
-          }).catch(() => {
+      saveDebounceTimer = setTimeout(async () => {
+        const state = {
+          slot_id: currentSlot,
+          theme: document.getElementById('card')?.className || 'mtg-card theme-black',
+          portrait: document.getElementById('portraitBox')?.style.backgroundImage || '',
+          inputs: {},
+          selects: {},
+          rhombuses: [],
+          radioIlum: null,
+          wounds: [],
+          manaChecks: {},
+          updated_at: new Date().toISOString()
+        };
+
+        document.querySelectorAll('input[data-id], textarea[data-id]').forEach(el => {
+          state.inputs[el.dataset.id] = el.type === 'checkbox' ? el.checked : el.value;
+        });
+
+        document.querySelectorAll('select[data-attr]').forEach(el => {
+          state.selects[el.dataset.attr] = el.value;
+        });
+
+        document.querySelectorAll('.rhombus').forEach((el, idx) => {
+          state.rhombuses[idx] = el.classList.contains('active');
+        });
+
+        const selectedRadio = document.querySelector('input[name="ilum"]:checked');
+        if (selectedRadio) state.radioIlum = selectedRadio.value;
+
+        document.querySelectorAll('.wound-box').forEach((el, idx) => {
+          state.wounds[idx] = {
+            text: el.innerText,
+            color: el.style.color || '#ef4444'
+          };
+        });
+
+        document.querySelectorAll('#manaTable input[type="checkbox"]').forEach(el => {
+          state.manaChecks[el.dataset.mana] = el.checked;
+        });
+
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          console.error('Não foi possível salvar a ficha localmente:', e);
+          if (syncDot) syncDot.className = 'sync-dot offline';
+          if (syncText) syncText.innerText = 'Erro: imagem muito grande';
+          return;
+        }
+
+        if (window.supabaseService?.client) {
+          try {
+            if (!window.supabaseService.currentUser) {
+              await window.supabaseService.checkSession();
+            }
+
+            if (window.supabaseService.currentUser) {
+              const result = await window.supabaseService.updateCharacter(currentSlot, state);
+
+              if (result?.success) {
+                if (syncDot) syncDot.className = 'sync-dot';
+                if (syncText) syncText.innerText = 'Salvo na Nuvem';
+              } else {
+                console.warn('Nuvem recusou o salvamento:', result?.error);
+                if (syncDot) syncDot.className = 'sync-dot';
+                if (syncText) syncText.innerText = 'Salvo Localmente';
+              }
+            } else {
+              if (syncDot) syncDot.className = 'sync-dot';
+              if (syncText) syncText.innerText = 'Salvo Localmente — entre para nuvem';
+            }
+          } catch (e) {
+            console.error('Erro ao sincronizar ficha:', e);
             if (syncDot) syncDot.className = 'sync-dot';
             if (syncText) syncText.innerText = 'Salvo Localmente';
-          });
+          }
         } else {
           if (syncDot) syncDot.className = 'sync-dot';
           if (syncText) syncText.innerText = 'Salvo Localmente';
         }
-      }, 1000);
+      }, 700);
     }
 
     async function loadState() {
       let state = null;
-      
-      // 1. Tenta carregar do Supabase se online
+
       if (window.supabaseService) {
         try {
-          const char = await window.supabaseService.getCharacter(currentSlot);
-          if (char && char.sheet_data) state = char.sheet_data;
-        } catch(e) {}
-      }
+          if (!window.supabaseService.currentUser) {
+            await window.supabaseService.checkSession();
+          }
 
-      // 2. Se não, carrega do LocalStorage
-      if (!state) {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          try { state = JSON.parse(saved); } catch (e) {}
+          const char = await window.supabaseService.getCharacter(currentSlot);
+
+          if (char?.sheet_data &&
+              typeof char.sheet_data === 'object' &&
+              Object.keys(char.sheet_data).length > 0) {
+            state = char.sheet_data;
+          }
+        } catch (e) {
+          console.warn('Falha ao carregar ficha da nuvem:', e);
         }
       }
 
-      // 3. Se ainda vazio, carrega do defaultSheets.json
+      // Não deixa uma ficha vazia da nuvem apagar dados locais existentes.
+      if (!state) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (saved) {
+          try {
+            state = JSON.parse(saved);
+          } catch (e) {
+            console.warn('Dados locais inválidos:', e);
+          }
+        }
+      }
+
       if (!state) {
         try {
           const res = await fetch('data/defaultSheets.json');
+
           if (res.ok) {
             const data = await res.json();
-            if (data.sheets && data.sheets[currentSlot - 1]) state = data.sheets[currentSlot - 1];
+
+            if (data.sheets && data.sheets[currentSlot - 1]) {
+              state = data.sheets[currentSlot - 1];
+            }
           }
-        } catch(e) {}
+        } catch (e) {
+          console.warn('Falha ao carregar ficha padrão:', e);
+        }
       }
 
       if (!state) return;
 
       try {
-        if (state.theme) document.getElementById('card').className = state.theme;
-        if (state.portrait) document.getElementById('portraitBox').style.backgroundImage = state.portrait;
-        for (const [id, val] of Object.entries(state.inputs || {})) { const el = document.querySelector(`[data-id="${id}"]`); if (el) { if (el.type === 'checkbox') el.checked = val; else el.value = val; } }
-        for (const [attr, val] of Object.entries(state.selects || {})) { const el = document.querySelector(`select[data-attr="${attr}"]`); if (el) el.value = val; }
-        if (state.rhombuses) document.querySelectorAll('.rhombus').forEach((el, idx) => { if (state.rhombuses[idx]) el.classList.add('active'); else el.classList.remove('active'); });
-        if (state.radioIlum) { const radio = document.querySelector(`input[name="ilum"][value="${state.radioIlum}"]`); if (radio) radio.checked = true; }
-        if (state.wounds) document.querySelectorAll('.wound-box').forEach((el, idx) => { if (state.wounds[idx]) { el.innerText = state.wounds[idx].text; el.style.color = state.wounds[idx].color || '#ef4444'; } });
-        if (state.manaChecks) for (const [key, val] of Object.entries(state.manaChecks)) { const chk = document.querySelector(`input[data-mana="${key}"]`); if (chk) chk.checked = val; }
-        processXP(); atualizarCondicoesDano();
-      } catch (e) { console.error("Erro ao carregar:", e); }
+        if (state.theme) {
+          document.getElementById('card').className = state.theme;
+        }
+
+        if (state.portrait) {
+          document.getElementById('portraitBox').style.backgroundImage = state.portrait;
+        }
+
+        for (const [id, val] of Object.entries(state.inputs || {})) {
+          const el = document.querySelector(`[data-id="${id}"]`);
+
+          if (el) {
+            if (el.type === 'checkbox') {
+              el.checked = Boolean(val);
+            } else {
+              el.value = val ?? '';
+            }
+          }
+        }
+
+        for (const [attr, val] of Object.entries(state.selects || {})) {
+          const el = document.querySelector(`select[data-attr="${attr}"]`);
+          if (el) el.value = val;
+        }
+
+        if (Array.isArray(state.rhombuses)) {
+          document.querySelectorAll('.rhombus').forEach((el, idx) => {
+            el.classList.toggle('active', Boolean(state.rhombuses[idx]));
+          });
+        }
+
+        if (state.radioIlum) {
+          const radio = document.querySelector(
+            `input[name="ilum"][value="${state.radioIlum}"]`
+          );
+          if (radio) radio.checked = true;
+        }
+
+        if (Array.isArray(state.wounds)) {
+          document.querySelectorAll('.wound-box').forEach((el, idx) => {
+            if (state.wounds[idx]) {
+              el.innerText = state.wounds[idx].text || '';
+              el.style.color = state.wounds[idx].color || '#ef4444';
+            }
+          });
+        }
+
+        if (state.manaChecks) {
+          for (const [key, val] of Object.entries(state.manaChecks)) {
+            const chk = document.querySelector(`input[data-mana="${key}"]`);
+            if (chk) chk.checked = Boolean(val);
+          }
+        }
+
+        processXP();
+        atualizarCondicoesDano();
+
+        const syncText = document.getElementById('syncText');
+        if (syncText) {
+          syncText.innerText = window.supabaseService?.currentUser
+            ? 'Nuvem Conectada'
+            : 'Ficha Carregada';
+        }
+      } catch (e) {
+        console.error('Erro ao aplicar ficha:', e);
+      }
     }
 
     function cycleWound(element) {
@@ -956,7 +1090,19 @@
 
     function toggleRhombus(element) { element.classList.toggle('active'); autoSave(); }
     function setTheme(themeName) { document.getElementById('card').className = 'mtg-card theme-' + themeName; autoSave(); }
-    function manualSave() { autoSave(); alert(`Ficha #${currentSlot} salva com sucesso!`); }
+    async function manualSave() {
+      autoSave();
+      await new Promise(resolve => setTimeout(resolve, 850));
+
+      const syncText = document.getElementById('syncText');
+      const status = syncText ? syncText.innerText : '';
+
+      alert(
+        status.includes('Nuvem')
+          ? `Ficha #${currentSlot} salva na nuvem!`
+          : `Ficha #${currentSlot} salva neste navegador. Entre com uma conta autorizada para sincronizar com a nuvem.`
+      );
+    }
     function resetSheet() { if (confirm(`Apagar todos os dados da Ficha #${currentSlot}?`)) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
     
     function exportJSON() {
@@ -1010,17 +1156,71 @@
       
       const portraitInput = document.getElementById('portraitInput');
       const portraitBox = document.getElementById('portraitBox');
-      portraitInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
+
+      async function compressPortrait(file) {
+        const maxSize = 1200;
+        return new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = function(event) {
-            portraitBox.style.backgroundImage = `url('${event.target.result}')`;
-            autoSave();
+
+          reader.onerror = () => reject(reader.error || new Error('Falha ao ler imagem'));
+
+          reader.onload = () => {
+            const img = new Image();
+
+            img.onerror = () => reject(new Error('Formato de imagem não suportado'));
+
+            img.onload = () => {
+              let width = img.naturalWidth || img.width;
+              let height = img.naturalHeight || img.height;
+
+              if (!width || !height) {
+                reject(new Error('Imagem inválida'));
+                return;
+              }
+
+              const scale = Math.min(1, maxSize / Math.max(width, height));
+              width = Math.max(1, Math.round(width * scale));
+              height = Math.max(1, Math.round(height * scale));
+
+              const canvas = document.createElement('canvas');
+              canvas.width = width;
+              canvas.height = height;
+
+              const ctx = canvas.getContext('2d');
+              if (!ctx) {
+                reject(new Error('Canvas indisponível'));
+                return;
+              }
+
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.80));
+            };
+
+            img.src = reader.result;
           };
+
           reader.readAsDataURL(file);
+        });
+      }
+
+      portraitInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+          const dataUrl = await compressPortrait(file);
+          portraitBox.style.backgroundImage = `url("${dataUrl}")`;
+          autoSave();
+
+          if (typeof showSimpleToast === 'function') {
+            showSimpleToast('Arte do personagem carregada e salva!');
+          }
+        } catch (err) {
+          console.error('Erro ao processar retrato:', err);
+          alert('Não foi possível processar a imagem. Tente JPG ou PNG.');
         }
       });
+
       atualizarCondicoesDano();
     });
   </script>
