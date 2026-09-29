@@ -72,22 +72,9 @@
           <label>NOME / NICK:</label>
           <input type="text" id="loginUsername" placeholder="Ex: Valírio ou Mestre">
         </div>
-        <div class="field-group">
-          <label>FICHA / SLOT:</label>
-          <select id="loginSlotSelect">
-            <option value="">Nenhum (ou Mestre)</option>
-            <option value="1">Slot #1 - Valírio</option>
-            <option value="2">Slot #2 - Kaelen</option>
-            <option value="3">Slot #3 - Morwenna</option>
-            <option value="4">Slot #4 - Ignis</option>
-            <option value="5">Slot #5 - Sylvana</option>
-            <option value="6">Slot #6 - Autômato MK-VII</option>
-            <option value="7">Slot #7 - Aurelius</option>
-            <option value="8">Slot #8 - Nereida</option>
-            <option value="9">Slot #9 - Brakkor</option>
-            <option value="10">Slot #10 - Zul'Kiran</option>
-          </select>
-        </div>
+        <p style="font-size:0.78rem; color:var(--card-text-muted); margin:0;">
+          Novas contas entram como <strong>Jogador</strong> sem slot. O Mestre atribui a ficha depois do cadastro.
+        </p>
 
         <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button class="action-btn" onclick="portalHub.handleLogin()" style="flex: 1; justify-content: center;">
