@@ -61,7 +61,6 @@ class SupabaseService {
 
   async login(email, password) {
     if (!this.client) {
-      // Login offline simulado para mestre ou convidado
       if (password === 'mestre' || email.toLowerCase().includes('mestre')) {
         this.currentProfile = { username: 'Mestre', role: 'gm', assigned_slot: null };
         return { user: { email }, profile: this.currentProfile };
@@ -77,9 +76,11 @@ class SupabaseService {
     return { user: data.user, profile: this.currentProfile };
   }
 
-  async register(email, password, username, role = 'player', assignedSlot = null) {
+  // Cadastro seguro: role e slot nunca são definidos pelo cliente.
+  // Um novo usuário sempre nasce como player sem slot; o GM/admin faz a atribuição.
+  async register(email, password, username) {
     if (!this.client) {
-      this.currentProfile = { username, role, assigned_slot: assignedSlot };
+      this.currentProfile = { username, role: 'player', assigned_slot: null };
       return { user: { email }, profile: this.currentProfile };
     }
 
@@ -89,9 +90,7 @@ class SupabaseService {
       options: {
         data: {
           username: username || email.split('@')[0],
-          display_name: username,
-          role: role || 'player',
-          assigned_slot: assignedSlot ? parseInt(assignedSlot, 10) : null
+          display_name: username
         }
       }
     });
@@ -112,11 +111,9 @@ class SupabaseService {
     this.currentProfile = null;
   }
 
-  // Obter uma ficha específica (Slot 1 a 10)
   async getCharacter(slotId) {
     const slot = parseInt(slotId, 10);
-    
-    // Tenta obter do Supabase se online
+
     if (this.client) {
       try {
         const { data, error } = await this.client
@@ -124,29 +121,21 @@ class SupabaseService {
           .select('*')
           .eq('slot_id', slot)
           .single();
-        if (!error && data) {
-          return data;
-        }
+        if (!error && data) return data;
       } catch (e) {
         console.warn(`Supabase offline ao buscar slot ${slot}:`, e);
       }
     }
 
-    // Fallback: LocalStorage
     const localKey = `chronus_mtg_sheet_slot_${slot}_v10`;
     const legacyLocalKey = `chronus_sheet_slot_${slot}`;
     const localData = localStorage.getItem(localKey) || localStorage.getItem(legacyLocalKey);
     if (localData) {
-      try {
-        return JSON.parse(localData);
-      } catch (e) {}
+      try { return JSON.parse(localData); } catch (e) {}
     }
-
-    // Fallback 2: Buscar do JSON de seeds padrão
     return null;
   }
 
-  // Obter todos os 10 slots
   async getAllCharacters() {
     if (this.client) {
       try {
@@ -154,40 +143,33 @@ class SupabaseService {
           .from('characters')
           .select('*')
           .order('slot_id', { ascending: true });
-        if (!error && data && data.length > 0) {
-          return data;
-        }
+        if (!error && data && data.length > 0) return data;
       } catch (e) {
         console.warn('Falha ao obter lista do Supabase:', e);
       }
     }
 
-    // Fallback local: Carregar todos os 10 slots do LocalStorage
     const list = [];
     for (let i = 1; i <= 10; i++) {
       const localData = localStorage.getItem(`chronus_sheet_slot_${i}`);
       if (localData) {
-        try {
-          list.push(JSON.parse(localData));
-        } catch (e) {}
+        try { list.push(JSON.parse(localData)); } catch (e) {}
       }
     }
     return list;
   }
 
-  // Atualizar Ficha no Supabase e LocalStorage
   async updateCharacter(slotId, payload) {
     const slot = parseInt(slotId, 10);
-    
-    // Sempre salva no LocalStorage imediatamente
-    localStorage.setItem(`chronus_mtg_sheet_slot_${slot}_v10`, JSON.stringify(payload));
-    // Mantém compatibilidade com versões anteriores do portal.
-    localStorage.setItem(`chronus_sheet_slot_${slot}`, JSON.stringify(payload));
 
-    if (!this.client) return { success: true, offline: true };
+    // Offline: mantém a ficha jogável localmente.
+    if (!this.client) {
+      localStorage.setItem(`chronus_mtg_sheet_slot_${slot}_v10`, JSON.stringify(payload));
+      localStorage.setItem(`chronus_sheet_slot_${slot}`, JSON.stringify(payload));
+      return { success: true, offline: true };
+    }
 
     try {
-      // Extrai a URL limpa do retrato (remove wrapper url("...") do CSS backgroundImage)
       let avatarUrl = payload.portrait || payload.avatar_url || '';
       if (avatarUrl) {
         const match = avatarUrl.match(/url\(["']?(.*?)["']?\)/s);
@@ -210,7 +192,8 @@ class SupabaseService {
         max_mana: parseInt(payload.inputs?.manaMax, 10) || 10,
         avatar_url: avatarUrl,
         sheet_data: payload,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        updated_by: this.currentUser?.id || null
       };
 
       const { data, error } = await this.client
@@ -218,18 +201,22 @@ class SupabaseService {
         .upsert(updateData, { onConflict: 'slot_id' });
 
       if (error) throw error;
+
+      // Só espelha no navegador depois que a nuvem aceitou a alteração.
+      localStorage.setItem(`chronus_mtg_sheet_slot_${slot}_v10`, JSON.stringify(payload));
+      localStorage.setItem(`chronus_sheet_slot_${slot}`, JSON.stringify(payload));
       return { success: true, offline: false, data };
     } catch (e) {
       console.error('Erro ao sincronizar com Supabase:', e);
-      return { success: false, offline: true, error: e };
+      return { success: false, offline: false, error: e };
     }
   }
 
-  // Registrar rolagem no feed do VTT
   async insertDiceLog(slotId, characterName, playerName, actionTitle, dicePool, rollResult, breakdown, isGmRoll = false, isSecret = false) {
-    if (!this.client) return;
+    if (!this.client) return { success: false, offline: true };
+
     try {
-      await this.client.from('dice_logs').insert({
+      const { error } = await this.client.from('dice_logs').insert({
         slot_id: slotId ? parseInt(slotId, 10) : null,
         character_name: characterName || 'Anônimo',
         player_name: playerName || '',
@@ -240,17 +227,19 @@ class SupabaseService {
         is_gm_roll: isGmRoll,
         is_secret: isSecret
       });
+      if (error) throw error;
+      return { success: true };
     } catch (e) {
       console.warn('Erro ao inserir log de dados:', e);
+      return { success: false, error: e };
     }
   }
 
-  // Subscrever canais em tempo real
   subscribeRealtime(onCharacterChange, onDiceLog) {
     if (!this.client) return null;
-    
+
     const channel = this.client.channel('chronus_vtt_realtime');
-    
+
     if (onCharacterChange) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table: 'characters' }, (payload) => {
         onCharacterChange(payload);
